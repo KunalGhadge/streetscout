@@ -21,59 +21,80 @@ export function Hero({ onShopClick, onExploreClick }: HeroProps) {
     const video = isMobile ? mobileVideoRef.current : desktopVideoRef.current
     if (!video) return
 
-    // Force play on mount
-    const playPromise = video.play()
-    if (playPromise !== undefined) {
-      playPromise.catch(() => {
-        // Autoplay was blocked, try again on first user interaction
-        const resumeOnInteraction = () => {
-          video.play().catch(() => {})
-          document.removeEventListener('click', resumeOnInteraction)
-          document.removeEventListener('touchstart', resumeOnInteraction)
-        }
-        document.addEventListener('click', resumeOnInteraction, { once: true })
-        document.addEventListener('touchstart', resumeOnInteraction, { once: true })
-      })
+    // Aggressive force-play — Chrome mobile often blocks autoplay or pauses after 1-2s
+    const forcePlay = () => {
+      if (video.paused && !video.ended) {
+        const p = video.play()
+        if (p) p.catch(() => {})
+      }
     }
+
+    // Initial play
+    forcePlay()
+
+    // Heartbeat: check every 500ms if video is paused and force resume
+    // This is the most reliable way to beat Chrome's aggressive pausing
+    const heartbeat = setInterval(forcePlay, 500)
 
     // Auto-resume if Chrome pauses the video unexpectedly
     const onPause = () => {
       // Only resume if the video isn't at the end (loop handles that)
       if (!video.ended && video.currentTime > 0) {
-        video.play().catch(() => {})
+        // Small delay to avoid race conditions with Chrome's internal pause
+        setTimeout(forcePlay, 100)
       }
     }
     video.addEventListener('pause', onPause)
 
-    // Resume after buffering stall (Chrome mobile can stall on slow networks)
-    const onWaiting = () => {
-      // When data becomes available again, ensure it plays
-      const onPlaying = () => {
-        video.removeEventListener('playing', onPlaying)
-      }
-      video.addEventListener('playing', onPlaying, { once: true })
-    }
-    video.addEventListener('waiting', onWaiting)
-
-    // Resume if the video stalls (network issue)
+    // Resume if the video stalls (network/buffer issue)
     const onStalled = () => {
-      video.play().catch(() => {})
+      setTimeout(forcePlay, 200)
     }
     video.addEventListener('stalled', onStalled)
 
+    // Resume after buffering
+    const onWaiting = () => {
+      setTimeout(forcePlay, 300)
+    }
+    video.addEventListener('waiting', onWaiting)
+
     // Re-play on visibility change (Chrome pauses hidden tabs)
     const onVisibility = () => {
-      if (!document.hidden && video.paused) {
-        video.play().catch(() => {})
+      if (!document.hidden) {
+        setTimeout(forcePlay, 100)
       }
     }
     document.addEventListener('visibilitychange', onVisibility)
 
+    // Resume on any user interaction (Chrome requires this sometimes)
+    const onInteraction = () => {
+      forcePlay()
+    }
+    document.addEventListener('touchstart', onInteraction, { passive: true })
+    document.addEventListener('click', onInteraction, { passive: true })
+
+    // Try play on canplay (when enough data is buffered)
+    const onCanPlay = () => {
+      forcePlay()
+    }
+    video.addEventListener('canplay', onCanPlay)
+
+    // Try play on loadeddata (first frame ready)
+    const onLoadedData = () => {
+      forcePlay()
+    }
+    video.addEventListener('loadeddata', onLoadedData)
+
     return () => {
+      clearInterval(heartbeat)
       video.removeEventListener('pause', onPause)
-      video.removeEventListener('waiting', onWaiting)
       video.removeEventListener('stalled', onStalled)
+      video.removeEventListener('waiting', onWaiting)
+      video.removeEventListener('canplay', onCanPlay)
+      video.removeEventListener('loadeddata', onLoadedData)
       document.removeEventListener('visibilitychange', onVisibility)
+      document.removeEventListener('touchstart', onInteraction)
+      document.removeEventListener('click', onInteraction)
     }
   }, [])
 
