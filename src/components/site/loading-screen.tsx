@@ -5,16 +5,21 @@ import { useEffect, useState } from 'react'
 interface LoadingScreenProps {
   images: string[]
   video?: string
+  videoMobile?: string
   onComplete: () => void
 }
 
-export function LoadingScreen({ images, video, onComplete }: LoadingScreenProps) {
+export function LoadingScreen({ images, video, videoMobile, onComplete }: LoadingScreenProps) {
   const [progress, setProgress] = useState(0)
   const [exiting, setExiting] = useState(false)
 
   useEffect(() => {
+    // Pick the correct video based on screen width (mobile = portrait video, desktop = landscape)
+    const isMobile = window.innerWidth < 768
+    const activeVideo = isMobile ? videoMobile : video
+
     let loaded = 0
-    const total = images.length + (video ? 1 : 0)
+    const total = images.length + (activeVideo ? 1 : 0)
     const startTime = Date.now()
     const MIN_DISPLAY = 1200 // minimum 1.2s for a welcoming feel
 
@@ -44,11 +49,11 @@ export function LoadingScreen({ images, video, onComplete }: LoadingScreenProps)
 
     // Preload the video — wait until enough has buffered to play through
     let videoEl: HTMLVideoElement | null = null
-    if (video) {
+    if (activeVideo) {
       videoEl = document.createElement('video')
       videoEl.preload = 'auto'
       videoEl.muted = true
-      videoEl.src = video
+      videoEl.src = activeVideo
 
       // Use a flag so the video only counts once (canplaythrough + loadeddata may both fire)
       let videoCounted = false
