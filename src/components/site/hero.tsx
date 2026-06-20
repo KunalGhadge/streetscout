@@ -15,86 +15,42 @@ export function Hero({ onShopClick, onExploreClick }: HeroProps) {
   const desktopVideoRef = useRef<HTMLVideoElement>(null)
   const mobileVideoRef = useRef<HTMLVideoElement>(null)
 
-  // Force play and auto-resume if Chrome pauses the video (known Chrome mobile issue)
+  // Start video playback — minimal handlers to avoid stutter
+  // (Previous aggressive heartbeat caused play-pause stutter on mobile)
   useEffect(() => {
     const isMobile = window.innerWidth < 768
     const video = isMobile ? mobileVideoRef.current : desktopVideoRef.current
     if (!video) return
 
-    // Aggressive force-play — Chrome mobile often blocks autoplay or pauses after 1-2s
-    const forcePlay = () => {
-      if (video.paused && !video.ended) {
-        const p = video.play()
-        if (p) p.catch(() => {})
+    // Start playback once
+    const startPlay = () => {
+      if (video.paused) {
+        video.play().catch(() => {})
       }
     }
 
-    // Initial play
-    forcePlay()
+    // Initial play attempt
+    startPlay()
 
-    // Heartbeat: check every 500ms if video is paused and force resume
-    // This is the most reliable way to beat Chrome's aggressive pausing
-    const heartbeat = setInterval(forcePlay, 500)
-
-    // Auto-resume if Chrome pauses the video unexpectedly
-    const onPause = () => {
-      // Only resume if the video isn't at the end (loop handles that)
-      if (!video.ended && video.currentTime > 0) {
-        // Small delay to avoid race conditions with Chrome's internal pause
-        setTimeout(forcePlay, 100)
-      }
+    // If autoplay blocked, resume on first user interaction (Chrome requirement)
+    const onInteraction = () => {
+      startPlay()
     }
-    video.addEventListener('pause', onPause)
+    document.addEventListener('touchstart', onInteraction, { once: true, passive: true })
+    document.addEventListener('click', onInteraction, { once: true, passive: true })
 
-    // Resume if the video stalls (network/buffer issue)
-    const onStalled = () => {
-      setTimeout(forcePlay, 200)
-    }
-    video.addEventListener('stalled', onStalled)
-
-    // Resume after buffering
-    const onWaiting = () => {
-      setTimeout(forcePlay, 300)
-    }
-    video.addEventListener('waiting', onWaiting)
-
-    // Re-play on visibility change (Chrome pauses hidden tabs)
+    // Resume when returning to tab (Chrome pauses background tabs)
     const onVisibility = () => {
       if (!document.hidden) {
-        setTimeout(forcePlay, 100)
+        startPlay()
       }
     }
     document.addEventListener('visibilitychange', onVisibility)
 
-    // Resume on any user interaction (Chrome requires this sometimes)
-    const onInteraction = () => {
-      forcePlay()
-    }
-    document.addEventListener('touchstart', onInteraction, { passive: true })
-    document.addEventListener('click', onInteraction, { passive: true })
-
-    // Try play on canplay (when enough data is buffered)
-    const onCanPlay = () => {
-      forcePlay()
-    }
-    video.addEventListener('canplay', onCanPlay)
-
-    // Try play on loadeddata (first frame ready)
-    const onLoadedData = () => {
-      forcePlay()
-    }
-    video.addEventListener('loadeddata', onLoadedData)
-
     return () => {
-      clearInterval(heartbeat)
-      video.removeEventListener('pause', onPause)
-      video.removeEventListener('stalled', onStalled)
-      video.removeEventListener('waiting', onWaiting)
-      video.removeEventListener('canplay', onCanPlay)
-      video.removeEventListener('loadeddata', onLoadedData)
-      document.removeEventListener('visibilitychange', onVisibility)
       document.removeEventListener('touchstart', onInteraction)
       document.removeEventListener('click', onInteraction)
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [])
 
@@ -134,7 +90,7 @@ export function Hero({ onShopClick, onExploreClick }: HeroProps) {
           poster="/images/hero-bg.png"
           src="/videos/hero-bg.mp4"
           className="absolute inset-0 hidden h-full w-full object-cover md:block"
-          style={{ objectFit: 'cover' }}
+          style={{ objectFit: 'cover', willChange: 'transform' }}
           suppressHydrationWarning
         />
 
@@ -149,7 +105,7 @@ export function Hero({ onShopClick, onExploreClick }: HeroProps) {
           poster="/images/hero-bg.png"
           src="/videos/hero-bg-mobile.mp4"
           className="absolute inset-0 h-full w-full object-cover md:hidden"
-          style={{ objectFit: 'cover' }}
+          style={{ objectFit: 'cover', willChange: 'transform' }}
           suppressHydrationWarning
         />
 
@@ -182,8 +138,10 @@ export function Hero({ onShopClick, onExploreClick }: HeroProps) {
         </span>
       </div>
 
-      {/* Particles - minimal */}
-      <Particles count={10} />
+      {/* Particles - minimal (disabled on mobile for video performance) */}
+      <div className="hidden md:block">
+        <Particles count={8} />
+      </div>
 
       {/* Technical collection tags - corners */}
       <div className="pointer-events-none absolute inset-0 z-10 hidden sm:block">
