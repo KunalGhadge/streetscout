@@ -1,8 +1,9 @@
 'use client'
 
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Particles } from './particles'
-import { ArrowRight, Zap } from 'lucide-react'
+import { ArrowRight, Zap, Volume2, VolumeX } from 'lucide-react'
 
 interface HeroProps {
   onShopClick: () => void
@@ -10,6 +11,27 @@ interface HeroProps {
 }
 
 export function Hero({ onShopClick, onExploreClick }: HeroProps) {
+  const [muted, setMuted] = useState(true)
+  const desktopVideoRef = useRef<HTMLVideoElement>(null)
+  const mobileVideoRef = useRef<HTMLVideoElement>(null)
+
+  // Sync mute state to whichever video is currently visible
+  useEffect(() => {
+    const isMobile = window.innerWidth < 768
+    const activeVideo = isMobile ? mobileVideoRef.current : desktopVideoRef.current
+    if (activeVideo) {
+      activeVideo.muted = muted
+      // If unmuting, ensure volume is audible
+      if (!muted) {
+        activeVideo.volume = 0.7
+      }
+    }
+  }, [muted])
+
+  const toggleMute = () => {
+    setMuted((m) => !m)
+  }
+
   return (
     <section
       id="hero"
@@ -20,6 +42,7 @@ export function Hero({ onShopClick, onExploreClick }: HeroProps) {
         {/* Desktop / landscape video (hidden on mobile) */}
         {/* src set directly on video (no <source> children) to avoid browser-extension hydration mismatches */}
         <video
+          ref={desktopVideoRef}
           autoPlay
           muted
           loop
@@ -34,6 +57,7 @@ export function Hero({ onShopClick, onExploreClick }: HeroProps) {
 
         {/* Mobile / portrait video (hidden on desktop) */}
         <video
+          ref={mobileVideoRef}
           autoPlay
           muted
           loop
@@ -99,6 +123,23 @@ export function Hero({ onShopClick, onExploreClick }: HeroProps) {
           <span className="font-mono-tech text-[10px] text-white/50">LIMITED COLLECTION</span>
         </div>
       </div>
+
+      {/* Mute / Unmute button — small, cool, premium */}
+      <button
+        onClick={toggleMute}
+        aria-label={muted ? 'Unmute video' : 'Mute video'}
+        className="group fixed right-4 top-20 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white backdrop-blur-md transition-all duration-300 hover:border-[#FF2D55] hover:bg-[#FF2D55]/20 sm:right-6 sm:top-24"
+      >
+        {muted ? (
+          <VolumeX className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
+        ) : (
+          <Volume2 className="h-4 w-4 animate-pulse text-[#FF2D55] transition-transform duration-300 group-hover:scale-110" />
+        )}
+        {/* Sound wave rings when unmuted */}
+        {!muted && (
+          <span className="absolute inset-0 rounded-full border border-[#FF2D55]/40 animate-ping" />
+        )}
+      </button>
 
       {/* Content */}
       <div className="relative z-20 mx-auto max-w-4xl px-4 text-center sm:px-6">
