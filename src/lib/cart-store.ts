@@ -69,7 +69,7 @@ export const useCart = create<CartState>()(
       toggleCart: () => set({ isOpen: !get().isOpen }),
       triggerFly: (x, y) => {
         set({ isFlying: true, flyTarget: { x, y } })
-        setTimeout(() => set({ isFlying: false, flyTarget: null }), 800)
+        setTimeout(() => set({ isFlying: false, flyTarget: null }), 550)
       },
       getTotalItems: () =>
         get().items.reduce((total, item) => total + item.quantity, 0),

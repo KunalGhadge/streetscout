@@ -274,6 +274,81 @@
   animation: line-expand-h 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* === Snappy Fly-to-Cart (GPU only, poppy) === */
+@keyframes fly-pop {
+  0% {
+    transform: translate(0, 0) scale(0.4);
+    opacity: 0;
+  }
+  15% {
+    transform: translate(calc(var(--dx) * 0.05), calc(var(--dy) * 0.05)) scale(1.3);
+    opacity: 1;
+  }
+  30% {
+    transform: translate(calc(var(--dx) * 0.12), calc(var(--dy) * 0.12)) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes cart-bounce {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.35); }
+  50% { transform: scale(0.9); }
+  70% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+.cart-bounce {
+  animation: cart-bounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* === Loading Screen Animations === */
+@keyframes loader-bar {
+  0% { transform: scaleX(0); transform-origin: left; }
+  100% { transform: scaleX(1); transform-origin: left; }
+}
+
+@keyframes loader-star {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+@keyframes loader-orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes loader-fade-out {
+  0% { opacity: 1; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
+}
+
+@keyframes loader-text {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+@keyframes glitch-flicker {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.4; }
+  94% { opacity: 1; }
+  96% { opacity: 0.7; }
+  97% { opacity: 1; }
+}
+
+.loader-exit {
+  animation: loader-fade-out 0.6s ease forwards;
+}
+
+.animate-glitch {
+  animation: glitch-flicker 3s infinite;
+}
+
 /* === Reveal on Scroll === */
 .reveal {
   opacity: 0;

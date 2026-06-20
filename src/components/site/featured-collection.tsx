@@ -78,13 +78,14 @@ function ProductCard({
     e.stopPropagation()
     setAdding(true)
 
-    // Fly animation
+    // Fly animation - use the button center as origin
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    triggerFly(rect.left + rect.width / 2, rect.top)
+    triggerFly(rect.left + rect.width / 2, rect.top + rect.height / 2)
 
     // Add default size M
     addItem(product, 'M', 1)
 
+    // Snappy: open cart right after the fly animation (550ms)
     setTimeout(() => {
       setAdding(false)
       toast({
@@ -92,7 +93,7 @@ function ProductCard({
         description: `${product.name} — Size M`,
       })
       openCart()
-    }, 500)
+    }, 550)
   }
 
   return (

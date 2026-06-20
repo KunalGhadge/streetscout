@@ -29,31 +29,35 @@ export function FlyToCart() {
       style={{
         left: flyTarget.x,
         top: flyTarget.y,
-        animation: 'flyToCart 0.8s cubic-bezier(0.4, 0, 0.6, 1) forwards',
+        // GPU-only: translate + scale, will-change for compositing
+        willChange: 'transform, opacity',
+        animation: 'fly-pop 0.55s cubic-bezier(0.2, 0.9, 0.3, 1) forwards',
         '--dx': `${dx}px`,
         '--dy': `${dy}px`,
       } as React.CSSProperties}
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FF2D55] text-white shadow-lg glow-accent">
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+      {/* Pop badge with check icon */}
+      <div
+        className="flex h-11 w-11 items-center justify-center rounded-full bg-[#FF2D55] text-white"
+        style={{
+          boxShadow: '0 0 24px rgba(255, 45, 85, 0.6), 0 4px 16px rgba(0,0,0,0.4)',
+        }}
+      >
+        <svg
+          className="h-5 w-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={3.5}
+        >
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
         </svg>
       </div>
-      <style>{`
-        @keyframes flyToCart {
-          0% {
-            transform: translate(0, 0) scale(1);
-            opacity: 1;
-          }
-          70% {
-            opacity: 1;
-          }
-          100% {
-            transform: translate(var(--dx), var(--dy)) scale(0.3);
-            opacity: 0;
-          }
-        }
-      `}</style>
+      {/* Trail glow */}
+      <div
+        className="absolute inset-0 -z-10 rounded-full bg-[#FF2D55]/40 blur-xl"
+        style={{ transform: 'scale(1.5)' }}
+      />
     </div>
   )
 }

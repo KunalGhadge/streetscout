@@ -90,12 +90,11 @@ export function Navbar({ onNavigate }: NavbarProps) {
               <span className="hidden sm:inline font-mono-tech text-[10px] text-white/40 group-hover:text-white/60">
                 CART
               </span>
-              <div className="relative">
-                <ShoppingBag className="h-5 w-5 text-white/70 transition-colors group-hover:text-white" />
+              <div className="relative" key={`cart-icon-${totalItems}`}>
+                <ShoppingBag className="h-5 w-5 text-white/70 transition-colors group-hover:text-white cart-bounce" />
                 {totalItems > 0 && (
                   <span
-                    key={totalItems}
-                    className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF2D55] px-1 text-[9px] font-bold text-white animate-fade-in"
+                    className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF2D55] px-1 text-[9px] font-bold text-white cart-bounce"
                   >
                     {totalItems}
                   </span>

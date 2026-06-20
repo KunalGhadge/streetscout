@@ -51,7 +51,7 @@ export function ProductDetail({ product, onClose }: ProductDetailProps) {
   const handleAddToCart = (e: React.MouseEvent) => {
     setAdding(true)
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    triggerFly(rect.left + rect.width / 2, rect.top)
+    triggerFly(rect.left + rect.width / 2, rect.top + rect.height / 2)
 
     addItem(product, selectedSize, quantity)
 
@@ -63,7 +63,7 @@ export function ProductDetail({ product, onClose }: ProductDetailProps) {
       })
       onClose()
       openCart()
-    }, 600)
+    }, 550)
   }
 
   return (

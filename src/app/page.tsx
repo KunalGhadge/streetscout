@@ -11,7 +11,8 @@ import { ProductDetail } from '@/components/site/product-detail'
 import { CartDrawer } from '@/components/site/cart-drawer'
 import { Footer } from '@/components/site/footer'
 import { FlyToCart } from '@/components/site/fly-to-cart'
-import { universes } from '@/lib/data'
+import { LoadingScreen } from '@/components/site/loading-screen'
+import { universes, lifestyleImages } from '@/lib/data'
 import type { Product } from '@/lib/types'
 
 export default function Home() {
@@ -19,6 +20,14 @@ export default function Home() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showLoader, setShowLoader] = useState(true)
+
+  // Collect all heavy images to preload
+  const preloadImages = [
+    '/images/hero-bg.png',
+    ...universes.map((u) => u.image),
+    ...lifestyleImages.map((l) => l.src),
+  ]
 
   // Fetch products
   useEffect(() => {
@@ -75,46 +84,55 @@ export default function Home() {
   )
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#050505]">
-      <Navbar onNavigate={handleNavigate} />
-
-      <main className="flex-1">
-        <Hero
-          onShopClick={() => handleNavigate('featured')}
-          onExploreClick={() => handleNavigate('drops')}
+    <>
+      {showLoader && (
+        <LoadingScreen
+          images={preloadImages}
+          onComplete={() => setShowLoader(false)}
         />
+      )}
 
-        {loading ? (
-          <div className="flex h-96 items-center justify-center">
-            <div className="flex flex-col items-center gap-3">
-              <div className="font-jp text-sm tracking-wider text-white/30">読み込み中</div>
-              <div className="font-mono-tech text-[10px] text-white/20">LOADING COLLECTION...</div>
-            </div>
-          </div>
-        ) : (
-          <FeaturedCollection
-            products={featuredProducts}
-            onSelectProduct={setSelectedProduct}
+      <div className="flex min-h-screen flex-col bg-[#050505]">
+        <Navbar onNavigate={handleNavigate} />
+
+        <main className="flex-1">
+          <Hero
+            onShopClick={() => handleNavigate('featured')}
+            onExploreClick={() => handleNavigate('drops')}
           />
-        )}
 
-        <ShopByUniverse onSelectUniverse={handleSelectUniverse} />
+          {loading ? (
+            <div className="flex h-96 items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="font-jp text-sm tracking-wider text-white/30">読み込み中</div>
+                <div className="font-mono-tech text-[10px] text-white/20">LOADING COLLECTION...</div>
+              </div>
+            </div>
+          ) : (
+            <FeaturedCollection
+              products={featuredProducts}
+              onSelectProduct={setSelectedProduct}
+            />
+          )}
 
-        <Drops onShopClick={() => handleNavigate('featured')} />
+          <ShopByUniverse onSelectUniverse={handleSelectUniverse} />
 
-        <Lifestyle />
-      </main>
+          <Drops onShopClick={() => handleNavigate('featured')} />
 
-      <Footer onNavigate={handleNavigate} />
+          <Lifestyle />
+        </main>
 
-      {/* Overlays */}
-      <ProductDetail
-        key={selectedProduct?.id || 'none'}
-        product={selectedProduct}
-        onClose={() => setSelectedProduct(null)}
-      />
-      <CartDrawer />
-      <FlyToCart />
-    </div>
+        <Footer onNavigate={handleNavigate} />
+
+        {/* Overlays */}
+        <ProductDetail
+          key={selectedProduct?.id || 'none'}
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+        />
+        <CartDrawer />
+        <FlyToCart />
+      </div>
+    </>
   )
 }
