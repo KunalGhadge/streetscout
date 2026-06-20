@@ -18,6 +18,7 @@ export function Hero({ onShopClick, onExploreClick }: HeroProps) {
       {/* Background video — two versions for responsive quality */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         {/* Desktop / landscape video (hidden on mobile) */}
+        {/* src set directly on video (no <source> children) to avoid browser-extension hydration mismatches */}
         <video
           autoPlay
           muted
@@ -25,12 +26,11 @@ export function Hero({ onShopClick, onExploreClick }: HeroProps) {
           playsInline
           preload="auto"
           poster="/images/hero-bg.png"
+          src="/videos/hero-bg.mp4"
           className="absolute inset-0 hidden h-full w-full object-cover md:block"
           style={{ objectFit: 'cover' }}
           suppressHydrationWarning
-        >
-          <source src="/videos/hero-bg.mp4" type="video/mp4" />
-        </video>
+        />
 
         {/* Mobile / portrait video (hidden on desktop) */}
         <video
@@ -40,12 +40,11 @@ export function Hero({ onShopClick, onExploreClick }: HeroProps) {
           playsInline
           preload="auto"
           poster="/images/hero-bg.png"
+          src="/videos/hero-bg-mobile.mp4"
           className="absolute inset-0 h-full w-full object-cover md:hidden"
           style={{ objectFit: 'cover' }}
           suppressHydrationWarning
-        >
-          <source src="/videos/hero-bg-mobile.mp4" type="video/mp4" />
-        </video>
+        />
 
         {/* Dark gradient overlays — lighter so video is visible but text stays readable */}
         <div className="absolute inset-0 bg-black/40" />
