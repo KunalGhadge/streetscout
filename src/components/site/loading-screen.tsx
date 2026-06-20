@@ -95,8 +95,11 @@ export function LoadingScreen({ images, video, videoMobile, onComplete }: Loadin
 
     return () => {
       clearTimeout(timeout)
+      // Don't aggressively clear the preload video src — it can interfere with
+      // the hero video's network buffer in some browsers. Let GC handle it.
       if (videoEl) {
-        videoEl.src = ''
+        videoEl.removeAttribute('src')
+        videoEl.load()
       }
     }
   }, [])

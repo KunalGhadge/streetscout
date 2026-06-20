@@ -15,6 +15,68 @@ export function Hero({ onShopClick, onExploreClick }: HeroProps) {
   const desktopVideoRef = useRef<HTMLVideoElement>(null)
   const mobileVideoRef = useRef<HTMLVideoElement>(null)
 
+  // Force play and auto-resume if Chrome pauses the video (known Chrome mobile issue)
+  useEffect(() => {
+    const isMobile = window.innerWidth < 768
+    const video = isMobile ? mobileVideoRef.current : desktopVideoRef.current
+    if (!video) return
+
+    // Force play on mount
+    const playPromise = video.play()
+    if (playPromise !== undefined) {
+      playPromise.catch(() => {
+        // Autoplay was blocked, try again on first user interaction
+        const resumeOnInteraction = () => {
+          video.play().catch(() => {})
+          document.removeEventListener('click', resumeOnInteraction)
+          document.removeEventListener('touchstart', resumeOnInteraction)
+        }
+        document.addEventListener('click', resumeOnInteraction, { once: true })
+        document.addEventListener('touchstart', resumeOnInteraction, { once: true })
+      })
+    }
+
+    // Auto-resume if Chrome pauses the video unexpectedly
+    const onPause = () => {
+      // Only resume if the video isn't at the end (loop handles that)
+      if (!video.ended && video.currentTime > 0) {
+        video.play().catch(() => {})
+      }
+    }
+    video.addEventListener('pause', onPause)
+
+    // Resume after buffering stall (Chrome mobile can stall on slow networks)
+    const onWaiting = () => {
+      // When data becomes available again, ensure it plays
+      const onPlaying = () => {
+        video.removeEventListener('playing', onPlaying)
+      }
+      video.addEventListener('playing', onPlaying, { once: true })
+    }
+    video.addEventListener('waiting', onWaiting)
+
+    // Resume if the video stalls (network issue)
+    const onStalled = () => {
+      video.play().catch(() => {})
+    }
+    video.addEventListener('stalled', onStalled)
+
+    // Re-play on visibility change (Chrome pauses hidden tabs)
+    const onVisibility = () => {
+      if (!document.hidden && video.paused) {
+        video.play().catch(() => {})
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      video.removeEventListener('pause', onPause)
+      video.removeEventListener('waiting', onWaiting)
+      video.removeEventListener('stalled', onStalled)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [])
+
   // Sync mute state to whichever video is currently visible
   useEffect(() => {
     const isMobile = window.innerWidth < 768
