@@ -4,20 +4,21 @@ import { useEffect, useState } from 'react'
 
 interface LoadingScreenProps {
   images: string[]
+  video?: string
   onComplete: () => void
 }
 
-export function LoadingScreen({ images, onComplete }: LoadingScreenProps) {
+export function LoadingScreen({ images, video, onComplete }: LoadingScreenProps) {
   const [progress, setProgress] = useState(0)
   const [exiting, setExiting] = useState(false)
 
   useEffect(() => {
     let loaded = 0
-    const total = images.length
+    const total = images.length + (video ? 1 : 0)
     const startTime = Date.now()
     const MIN_DISPLAY = 1200 // minimum 1.2s for a welcoming feel
 
-    // If no images, complete immediately
+    // If nothing to preload, complete immediately
     if (total === 0) {
       setProgress(100)
       finish()
@@ -26,7 +27,7 @@ export function LoadingScreen({ images, onComplete }: LoadingScreenProps) {
 
     const updateProgress = () => {
       loaded++
-      const pct = Math.round((loaded / total) * 100)
+      const pct = Math.min(100, Math.round((loaded / total) * 100))
       setProgress(pct)
       if (loaded >= total) {
         finish()
@@ -41,11 +42,37 @@ export function LoadingScreen({ images, onComplete }: LoadingScreenProps) {
       img.src = src
     })
 
-    // Safety timeout - force finish after 4s regardless
+    // Preload the video — wait until enough has buffered to play through
+    let videoEl: HTMLVideoElement | null = null
+    if (video) {
+      videoEl = document.createElement('video')
+      videoEl.preload = 'auto'
+      videoEl.muted = true
+      videoEl.src = video
+
+      // Use a flag so the video only counts once (canplaythrough + loadeddata may both fire)
+      let videoCounted = false
+      const onReady = () => {
+        if (videoCounted) return
+        videoCounted = true
+        updateProgress()
+      }
+
+      // canplaythrough fires when browser estimates it can play to end without stopping
+      videoEl.addEventListener('canplaythrough', onReady, { once: true })
+      videoEl.addEventListener('loadeddata', () => {
+        // Fallback: if canplaythrough doesn't fire, loadeddata means first frame is ready
+        // Give it a moment then count as loaded
+        setTimeout(onReady, 500)
+      }, { once: true })
+      videoEl.addEventListener('error', onReady, { once: true }) // count errors as loaded
+    }
+
+    // Safety timeout - force finish after 6s regardless (video may be slow)
     const timeout = setTimeout(() => {
       setProgress(100)
       finish()
-    }, 4000)
+    }, 6000)
 
     function finish() {
       clearTimeout(timeout)
@@ -61,7 +88,12 @@ export function LoadingScreen({ images, onComplete }: LoadingScreenProps) {
       }, remaining)
     }
 
-    return () => clearTimeout(timeout)
+    return () => {
+      clearTimeout(timeout)
+      if (videoEl) {
+        videoEl.src = ''
+      }
+    }
   }, [])
 
   return (

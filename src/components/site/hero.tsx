@@ -15,17 +15,20 @@ export function Hero({ onShopClick, onExploreClick }: HeroProps) {
       id="hero"
       className="relative flex min-h-[100svh] items-center justify-center overflow-hidden"
     >
-      {/* Background image with Ken Burns effect */}
-      <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 animate-ken-burns">
-          { }
-          <img
-            src="/images/hero-bg.png"
-            alt=""
-            className="h-full w-full object-cover"
-            fetchPriority="high"
-          />
-        </div>
+      {/* Background video - autoplay, muted, loop, covers whole section */}
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        <video
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          poster="/images/hero-bg.png"
+          className="absolute inset-0 h-full w-full object-cover"
+          style={{ objectFit: 'cover' }}
+        >
+          <source src="/videos/hero-bg.mp4" type="video/mp4" />
+        </video>
 
         {/* Heavy dark gradient overlays for readability (70-80% dark) */}
         <div className="absolute inset-0 bg-black/70" />

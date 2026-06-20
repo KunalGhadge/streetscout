@@ -88,6 +88,7 @@ export default function Home() {
       {showLoader && (
         <LoadingScreen
           images={preloadImages}
+          video="/videos/hero-bg.mp4"
           onComplete={() => setShowLoader(false)}
         />
       )}
