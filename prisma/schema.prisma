@@ -1,0 +1,32 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  collection   String
+  universe     String
+  price        Float
+  description  String
+  fabric       String
+  fit          String
+  breathability String
+  durability   String
+  imageFront   String
+  imageBack    String
+  accentColor  String   @default("purple")
+  isFeatured   Boolean  @default(false)
+  inStock      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
