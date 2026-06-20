@@ -3,34 +3,24 @@ import type { CartItem } from './types'
 // Change this to your business WhatsApp number (include country code, no + or spaces)
 export const WHATSAPP_NUMBER = '919999999999'
 
+export function formatINR(amount: number): string {
+  return '₹' + Math.round(amount).toLocaleString('en-IN')
+}
+
 export function generateWhatsAppMessage(items: CartItem[], total: number): string {
   const lines = items.map((item, index) => {
     const { product, size, quantity } = item
-    const itemTotal = (product.price * quantity).toFixed(2)
-    return `${index + 1}. ${product.name}
-   Collection: ${product.collection}
-   Size: ${size}
-   Qty: ${quantity}
-   Price: $${itemTotal}`
+    const itemTotal = product.price * quantity
+    return `${index + 1}. ${product.name} (${size}) x${quantity} — ${formatINR(itemTotal)}`
   })
 
-  const message = `*STREET SCOUT — ORDER*
-━━━━━━━━━━━━━━━━━━
+  const message = `Hey Street Scout! I'd like to order:
 
-${lines.join('\n\n')}
+${lines.join('\n')}
 
-━━━━━━━━━━━━━━━━━━
-*TOTAL: $${total.toFixed(2)}*
+Total: ${formatINR(total)}
 
-Ship to:
-Name: 
-Address: 
-City: 
-Pincode: 
-Phone: 
-
-━━━━━━━━━━━━━━━━━━
-Thank you for shopping with Street Scout!`
+Please confirm availability and payment details.`
 
   return encodeURIComponent(message)
 }

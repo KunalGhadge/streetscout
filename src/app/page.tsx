@@ -5,6 +5,7 @@ import { Navbar } from '@/components/site/navbar'
 import { Hero } from '@/components/site/hero'
 import { FeaturedCollection } from '@/components/site/featured-collection'
 import { ShopByUniverse } from '@/components/site/shop-by-universe'
+import { Drops } from '@/components/site/drops'
 import { Lifestyle } from '@/components/site/lifestyle'
 import { ProductDetail } from '@/components/site/product-detail'
 import { CartDrawer } from '@/components/site/cart-drawer'
@@ -54,7 +55,7 @@ export default function Home() {
     }
   }, [])
 
-  // Universe selection - scroll to featured and highlight
+  // Universe selection - open product detail for the universe
   const handleSelectUniverse = useCallback(
     (universeId: string) => {
       const universe = universes.find((u) => u.id === universeId)
@@ -67,7 +68,6 @@ export default function Home() {
       if (product) {
         setSelectedProduct(product)
       } else {
-        // Just scroll to featured
         handleNavigate('featured')
       }
     },
@@ -81,13 +81,14 @@ export default function Home() {
       <main className="flex-1">
         <Hero
           onShopClick={() => handleNavigate('featured')}
-          onExploreClick={() => handleNavigate('universes')}
+          onExploreClick={() => handleNavigate('drops')}
         />
 
         {loading ? (
           <div className="flex h-96 items-center justify-center">
-            <div className="font-jp text-sm tracking-wider text-white/30">
-              読み込み中...
+            <div className="flex flex-col items-center gap-3">
+              <div className="font-jp text-sm tracking-wider text-white/30">読み込み中</div>
+              <div className="font-mono-tech text-[10px] text-white/20">LOADING COLLECTION...</div>
             </div>
           </div>
         ) : (
@@ -98,6 +99,8 @@ export default function Home() {
         )}
 
         <ShopByUniverse onSelectUniverse={handleSelectUniverse} />
+
+        <Drops onShopClick={() => handleNavigate('featured')} />
 
         <Lifestyle />
       </main>

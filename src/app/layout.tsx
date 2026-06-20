@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Noto_Sans_JP, Bebas_Neue } from "next/font/google";
+import { Geist, Geist_Mono, Noto_Sans_JP, Archivo_Black } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -19,16 +19,16 @@ const notoJP = Noto_Sans_JP({
   weight: ["400", "700"],
 });
 
-const bebasNeue = Bebas_Neue({
+const archivoBlack = Archivo_Black({
   variable: "--font-display",
   subsets: ["latin"],
   weight: "400",
 });
 
 export const metadata: Metadata = {
-  title: "Street Scout — Premium Anime Jerseys",
+  title: "Street Scout — Premium Anime Streetwear",
   description:
-    "Premium anime jerseys built for everyday legends. Luxury fashion meets Japanese street culture and competitive esports aesthetics.",
+    "Premium anime jerseys built for everyday legends. A limited-drop streetwear brand inspired by Japanese editorial design and manga aesthetics.",
   keywords: [
     "anime jersey",
     "streetwear",
@@ -37,17 +37,18 @@ export const metadata: Metadata = {
     "Japanese streetwear",
     "anime fashion",
     "Street Scout",
+    "limited drop",
   ],
   authors: [{ name: "Street Scout" }],
   openGraph: {
-    title: "Street Scout — Premium Anime Jerseys",
+    title: "Street Scout — Premium Anime Streetwear",
     description: "Wear Your Fandom. Premium Anime Jerseys Built For Everyday Legends.",
     siteName: "Street Scout",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Street Scout — Premium Anime Jerseys",
+    title: "Street Scout — Premium Anime Streetwear",
     description: "Wear Your Fandom. Premium Anime Jerseys Built For Everyday Legends.",
   },
 };
@@ -60,7 +61,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${notoJP.variable} ${bebasNeue.variable} antialiased bg-background text-foreground`}
+        className={`${geistSans.variable} ${geistMono.variable} ${notoJP.variable} ${archivoBlack.variable} antialiased bg-background text-foreground`}
       >
         {children}
         <Toaster />

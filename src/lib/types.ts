@@ -3,7 +3,10 @@ export interface Product {
   name: string
   slug: string
   collection: string
+  collectionTag: string
+  dropNumber: string
   universe: string
+  universeJp: string
   price: number
   description: string
   fabric: string
@@ -29,6 +32,6 @@ export interface Universe {
   id: string
   name: string
   japanese: string
+  dropNumber: string
   image: string
-  accent: string
 }

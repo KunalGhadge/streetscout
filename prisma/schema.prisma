@@ -15,7 +15,10 @@ model Product {
   name         String
   slug         String   @unique
   collection   String
+  collectionTag String  @default("")
+  dropNumber   String   @default("DROP-001")
   universe     String
+  universeJp   String   @default("")
   price        Float
   description  String
   fabric       String
@@ -24,7 +27,7 @@ model Product {
   durability   String
   imageFront   String
   imageBack    String
-  accentColor  String   @default("purple")
+  accentColor  String   @default("accent")
   isFeatured   Boolean  @default(false)
   inStock      Boolean  @default(true)
   createdAt    DateTime @default(now())

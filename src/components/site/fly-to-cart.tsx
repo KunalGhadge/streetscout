@@ -34,7 +34,7 @@ export function FlyToCart() {
         '--dy': `${dy}px`,
       } as React.CSSProperties}
     >
-      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-crimson text-white shadow-lg glow-crimson">
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FF2D55] text-white shadow-lg glow-accent">
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
         </svg>

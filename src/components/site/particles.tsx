@@ -4,13 +4,11 @@ import { useEffect, useRef } from 'react'
 
 interface ParticlesProps {
   count?: number
-  color?: string
   className?: string
 }
 
 export function Particles({
-  count = 18,
-  color = 'rgba(220, 20, 60, 0.6)',
+  count = 10,
   className = '',
 }: ParticlesProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -43,10 +41,10 @@ export function Particles({
     const particles = Array.from({ length: count }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: -Math.random() * 0.4 - 0.1,
-      size: Math.random() * 1.5 + 0.5,
-      opacity: Math.random() * 0.5 + 0.1,
+      vx: (Math.random() - 0.5) * 0.15,
+      vy: -Math.random() * 0.2 - 0.05,
+      size: Math.random() * 1.2 + 0.3,
+      opacity: Math.random() * 0.3 + 0.05,
       life: Math.random(),
     }))
 
@@ -55,7 +53,7 @@ export function Particles({
       particles.forEach((p) => {
         p.x += p.vx
         p.y += p.vy
-        p.life += 0.003
+        p.life += 0.002
 
         if (p.y < -10 || p.life > 1) {
           p.x = Math.random() * width
@@ -66,7 +64,7 @@ export function Particles({
         const alpha = p.opacity * Math.sin(p.life * Math.PI)
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-        ctx.fillStyle = color.replace(/[\d.]+\)$/, `${alpha})`)
+        ctx.fillStyle = `rgba(255, 45, 85, ${alpha})`
         ctx.fill()
       })
       animationId = requestAnimationFrame(animate)
@@ -78,7 +76,7 @@ export function Particles({
       cancelAnimationFrame(animationId)
       window.removeEventListener('resize', resize)
     }
-  }, [count, color])
+  }, [count])
 
   return (
     <canvas

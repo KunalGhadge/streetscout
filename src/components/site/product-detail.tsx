@@ -4,11 +4,10 @@ import { useState, useEffect } from 'react'
 import { X, Plus, Minus, Check, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Product } from '@/lib/types'
-import { sizes } from '@/lib/data'
+import { sizes, formatINR } from '@/lib/data'
 import { useCart } from '@/lib/cart-store'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
-import { getAccent } from '@/lib/accents'
 
 interface ProductDetailProps {
   product: Product | null
@@ -44,8 +43,6 @@ export function ProductDetail({ product, onClose }: ProductDetailProps) {
 
   if (!product) return null
 
-  const accent = getAccent(product.accentColor)
-
   const images = [
     { src: product.imageFront, label: 'Front' },
     { src: product.imageBack, label: 'Detail' },
@@ -73,43 +70,57 @@ export function ProductDetail({ product, onClose }: ProductDetailProps) {
     <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-black/85 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="relative z-10 max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-t-3xl border border-white/10 bg-[#0a0a0a] sm:rounded-2xl no-scrollbar">
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute right-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white/70 backdrop-blur-sm transition-all hover:border-white/30 hover:text-white"
-          aria-label="Close product detail"
-        >
-          <X className="h-5 w-5" />
-        </button>
+      <div className="relative z-10 max-h-[94vh] w-full max-w-5xl overflow-y-auto rounded-t-lg border border-[#2A2A2A] bg-[#050505] sm:rounded-lg no-scrollbar">
+        {/* Top technical bar */}
+        <div className="sticky top-0 z-30 flex items-center justify-between border-b border-[#2A2A2A] bg-[#050505]/90 px-4 py-3 backdrop-blur-md sm:px-6">
+          <div className="flex items-center gap-3">
+            <span className="font-mono-tech text-[10px] text-[#FF2D55]">{product.dropNumber}</span>
+            <span className="h-3 w-px bg-[#2A2A2A]" />
+            <span className="font-mono-tech text-[10px] text-white/50">{product.collectionTag}</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-[#2A2A2A] text-white/60 transition-all hover:border-[#FF2D55] hover:text-white"
+            aria-label="Close product detail"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2">
           {/* Image gallery */}
-          <div className="relative bg-[#050505] p-6 sm:p-8 lg:p-10">
+          <div className="relative bg-[#080808] p-5 sm:p-8 lg:p-10">
+            {/* Grid overlay */}
+            <div className="absolute inset-0 grid-overlay opacity-20" />
+
             {/* Main image */}
-            <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-[#0a0a0a]">
+            <div className="relative aspect-[3/4] overflow-hidden bg-[#0a0a0a] border border-[#2A2A2A]">
               { }
               <img
                 src={images[activeImage].src}
                 alt={product.name}
                 className="h-full w-full object-cover"
               />
-              {/* Accent glow */}
-              <div
-                className="absolute -bottom-10 left-1/2 h-40 w-40 -translate-x-1/2 rounded-full blur-3xl opacity-30"
-                style={{ backgroundColor: accent.hex }}
-              />
+
+              {/* Corner brackets */}
+              <span className="absolute left-2 top-2 h-4 w-4 border-l border-t border-[#FF2D55]/60" />
+              <span className="absolute right-2 top-2 h-4 w-4 border-r border-t border-[#FF2D55]/60" />
+              <span className="absolute bottom-2 left-2 h-4 w-4 border-b border-l border-[#FF2D55]/60" />
+              <span className="absolute bottom-2 right-2 h-4 w-4 border-b border-r border-[#FF2D55]/60" />
 
               {/* View label */}
               <div className="absolute bottom-4 left-4">
-                <span className="font-jp rounded-full border border-white/10 bg-black/60 px-3 py-1 text-[10px] tracking-wider text-white/70 backdrop-blur-sm">
-                  {images[activeImage].label} View
-                </span>
+                <div className="flex items-center gap-1.5 border border-[#2A2A2A] bg-black/70 px-2.5 py-1 backdrop-blur-sm">
+                  <span className="h-1 w-1 bg-[#FF2D55]" />
+                  <span className="font-mono-tech text-[9px] tracking-wider text-white/80">
+                    {images[activeImage].label.toUpperCase()} VIEW
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -119,8 +130,12 @@ export function ProductDetail({ product, onClose }: ProductDetailProps) {
                 <button
                   key={idx}
                   onClick={() => setActiveImage(idx)}
-                  className="relative h-20 w-16 overflow-hidden rounded-lg border-2 transition-all"
-                  style={activeImage === idx ? { borderColor: accent.hex } : undefined}
+                  className={cn(
+                    'relative h-20 w-16 overflow-hidden border-2 transition-all',
+                    activeImage === idx
+                      ? 'border-[#FF2D55]'
+                      : 'border-[#2A2A2A] hover:border-white/30'
+                  )}
                 >
                   { }
                   <img
@@ -132,19 +147,23 @@ export function ProductDetail({ product, onClose }: ProductDetailProps) {
               ))}
             </div>
 
-            {/* Swipe hint for mobile */}
-            <p className="mt-3 text-center font-jp text-[10px] text-white/30 sm:hidden">
-              スワイプで表示
-            </p>
+            {/* Japanese collection tag */}
+            <div className="mt-5 flex items-center justify-center gap-3">
+              <span className="h-px w-8 bg-[#2A2A2A]" />
+              <span className="font-jp text-xs tracking-[0.3em] text-white/40">
+                {product.universeJp}
+              </span>
+              <span className="h-px w-8 bg-[#2A2A2A]" />
+            </div>
           </div>
 
           {/* Product info */}
-          <div className="flex flex-col p-6 sm:p-8 lg:p-10">
-            {/* Universe & collection */}
-            <div className="mb-2 flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: accent.hex }} />
-              <span className="text-[11px] font-medium uppercase tracking-wider text-white/50">
-                {product.universe} · {product.collection}
+          <div className="flex flex-col p-5 sm:p-8 lg:p-10">
+            {/* Collection tag */}
+            <div className="mb-3 flex items-center gap-2">
+              <span className="h-1.5 w-1.5 bg-[#FF2D55]" />
+              <span className="font-mono-tech text-[10px] uppercase tracking-wider text-[#FF2D55]/80">
+                {product.collectionTag}
               </span>
             </div>
 
@@ -153,23 +172,30 @@ export function ProductDetail({ product, onClose }: ProductDetailProps) {
               {product.name}
             </h2>
 
+            {/* Collection line */}
+            <div className="mt-2 flex items-center gap-2 text-sm text-white/40">
+              <span>{product.universe}</span>
+              <span className="h-3 w-px bg-[#2A2A2A]" />
+              <span>{product.collection}</span>
+            </div>
+
             {/* Price */}
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-2xl font-semibold text-white">
-                ${product.price.toFixed(0)}
+            <div className="mt-5 flex items-baseline gap-2">
+              <span className="font-display text-3xl font-bold text-white">
+                {formatINR(product.price)}
               </span>
-              <span className="text-sm text-white/40">USD</span>
+              <span className="font-mono-tech text-[10px] text-white/40">INR · FREE SHIP</span>
             </div>
 
             {/* Description */}
-            <p className="mt-5 text-sm leading-relaxed text-white/60">
+            <p className="mt-5 text-sm leading-relaxed text-white/55">
               {product.description}
             </p>
 
             {/* Size selector */}
             <div className="mt-8">
               <div className="mb-3 flex items-center justify-between">
-                <label className="text-xs font-semibold uppercase tracking-wider text-white/70">
+                <label className="font-mono-tech text-[10px] uppercase tracking-wider text-white/60">
                   Select Size
                 </label>
                 <span className="font-jp text-[10px] text-white/30">サイズ</span>
@@ -180,16 +206,11 @@ export function ProductDetail({ product, onClose }: ProductDetailProps) {
                     key={size}
                     onClick={() => setSelectedSize(size)}
                     className={cn(
-                      'flex h-11 min-w-11 items-center justify-center rounded-full px-4 text-sm font-medium transition-all',
+                      'flex h-11 min-w-11 items-center justify-center px-4 text-sm font-semibold transition-all',
                       selectedSize === size
-                        ? 'border-2 text-white'
-                        : 'border border-white/15 text-white/60 hover:border-white/40 hover:text-white'
+                        ? 'border-2 border-[#FF2D55] bg-[#FF2D55]/10 text-white'
+                        : 'border border-[#2A2A2A] text-white/60 hover:border-white/40 hover:text-white'
                     )}
-                    style={
-                      selectedSize === size
-                        ? { borderColor: accent.hex, backgroundColor: `rgba(${accent.rgb}, 0.1)` }
-                        : undefined
-                    }
                   >
                     {size}
                   </button>
@@ -199,23 +220,23 @@ export function ProductDetail({ product, onClose }: ProductDetailProps) {
 
             {/* Quantity */}
             <div className="mt-6">
-              <label className="mb-3 block text-xs font-semibold uppercase tracking-wider text-white/70">
+              <label className="mb-3 block font-mono-tech text-[10px] uppercase tracking-wider text-white/60">
                 Quantity
               </label>
-              <div className="inline-flex items-center gap-1 rounded-full border border-white/15 p-1">
+              <div className="inline-flex items-center gap-1 border border-[#2A2A2A] p-1">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-white/60 transition-all hover:bg-white/5 hover:text-white"
+                  className="flex h-9 w-9 items-center justify-center text-white/60 transition-all hover:bg-[#FF2D55] hover:text-white"
                   aria-label="Decrease quantity"
                 >
                   <Minus className="h-4 w-4" />
                 </button>
-                <span className="w-8 text-center text-sm font-semibold text-white">
+                <span className="w-10 text-center text-sm font-bold text-white">
                   {quantity}
                 </span>
                 <button
                   onClick={() => setQuantity(quantity + 1)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-white/60 transition-all hover:bg-white/5 hover:text-white"
+                  className="flex h-9 w-9 items-center justify-center text-white/60 transition-all hover:bg-[#FF2D55] hover:text-white"
                   aria-label="Increase quantity"
                 >
                   <Plus className="h-4 w-4" />
@@ -223,8 +244,8 @@ export function ProductDetail({ product, onClose }: ProductDetailProps) {
               </div>
             </div>
 
-            {/* Product specs */}
-            <div className="mt-8 grid grid-cols-2 gap-3">
+            {/* Product specs - technical grid */}
+            <div className="mt-8 grid grid-cols-2 gap-px border border-[#2A2A2A] bg-[#2A2A2A]">
               {[
                 { label: 'Fabric', value: product.fabric, jp: '素材' },
                 { label: 'Fit', value: product.fit, jp: 'フィット' },
@@ -233,15 +254,15 @@ export function ProductDetail({ product, onClose }: ProductDetailProps) {
               ].map((spec) => (
                 <div
                   key={spec.label}
-                  className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3"
+                  className="bg-[#0a0a0a] p-3"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                    <span className="font-mono-tech text-[9px] uppercase tracking-wider text-white/40">
                       {spec.label}
                     </span>
                     <span className="font-jp text-[9px] text-white/20">{spec.jp}</span>
                   </div>
-                  <p className="mt-1 text-sm text-white/80">{spec.value}</p>
+                  <p className="mt-1 text-sm text-white/85">{spec.value}</p>
                 </div>
               ))}
             </div>
@@ -250,8 +271,8 @@ export function ProductDetail({ product, onClose }: ProductDetailProps) {
             <Button
               onClick={handleAddToCart}
               disabled={adding}
-              className="btn-glow mt-8 w-full rounded-none py-4 text-sm font-semibold uppercase tracking-wider transition-all hover:opacity-90"
-              style={{ minHeight: '52px', backgroundColor: accent.hex, color: 'white' }}
+              className="btn-glow mt-8 w-full rounded-none py-4 text-sm font-bold uppercase tracking-wider transition-all hover:opacity-90"
+              style={{ minHeight: '52px', backgroundColor: '#FF2D55', color: 'white' }}
             >
               {adding ? (
                 <>
@@ -261,7 +282,7 @@ export function ProductDetail({ product, onClose }: ProductDetailProps) {
               ) : (
                 <>
                   <Check className="h-4 w-4" />
-                  Add To Cart — ${(product.price * quantity).toFixed(0)}
+                  Add To Cart — {formatINR(product.price * quantity)}
                 </>
               )}
             </Button>

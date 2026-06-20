@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { ShoppingBag, Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCart } from '@/lib/cart-store'
-import { Button } from '@/components/ui/button'
 
 interface NavbarProps {
   onNavigate: (section: string) => void
@@ -25,9 +24,10 @@ export function Navbar({ onNavigate }: NavbarProps) {
   }, [])
 
   const navItems = [
-    { label: 'Shop', target: 'featured' },
-    { label: 'Collections', target: 'universes' },
-    { label: 'About', target: 'lifestyle' },
+    { label: 'Shop', target: 'featured', num: '01' },
+    { label: 'Collections', target: 'universes', num: '02' },
+    { label: 'Drops', target: 'drops', num: '03' },
+    { label: 'About', target: 'lifestyle', num: '04' },
   ]
 
   const handleNav = (target: string) => {
@@ -41,7 +41,7 @@ export function Navbar({ onNavigate }: NavbarProps) {
         className={cn(
           'fixed top-0 left-0 right-0 z-50 transition-all duration-500',
           scrolled
-            ? 'glass-subtle border-b border-white/[0.06] py-2'
+            ? 'glass-subtle border-b border-[#2A2A2A] py-2.5'
             : 'bg-transparent py-4'
         )}
       >
@@ -49,12 +49,18 @@ export function Navbar({ onNavigate }: NavbarProps) {
           {/* Logo */}
           <button
             onClick={() => handleNav('hero')}
-            className="flex items-center gap-2 transition-opacity hover:opacity-80"
+            className="group flex items-center gap-2 transition-opacity hover:opacity-80"
             aria-label="Street Scout home"
           >
-            <span className="font-display text-xl sm:text-2xl font-bold tracking-tight text-white">
-              STREET<span className="accent-crimson"> SCOUT</span>
-            </span>
+            <div className="flex items-center gap-2">
+              {/* Star symbol */}
+              <svg width="14" height="14" viewBox="0 0 14 14" className="text-[#FF2D55]" fill="currentColor" aria-hidden="true">
+                <path d="M7 0L8.5 5.5L14 7L8.5 8.5L7 14L5.5 8.5L0 7L5.5 5.5L7 0Z" />
+              </svg>
+              <span className="font-display text-lg sm:text-xl font-bold tracking-tight text-white">
+                STREET SCOUT
+              </span>
+            </div>
           </button>
 
           {/* Desktop Nav */}
@@ -63,10 +69,13 @@ export function Navbar({ onNavigate }: NavbarProps) {
               <button
                 key={item.target}
                 onClick={() => handleNav(item.target)}
-                className="relative px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:text-white group"
+                className="group relative flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white/60 transition-colors hover:text-white"
               >
-                {item.label}
-                <span className="absolute bottom-1 left-1/2 h-px w-0 -translate-x-1/2 bg-accent-crimson transition-all duration-300 group-hover:w-3/4" />
+                <span className="font-mono-tech text-[9px] text-[#FF2D55]/60 transition-colors group-hover:text-[#FF2D55]">
+                  {item.num}
+                </span>
+                <span>{item.label}</span>
+                <span className="absolute bottom-0 left-1/2 h-px w-0 -translate-x-1/2 bg-[#FF2D55] transition-all duration-300 group-hover:w-2/3" />
               </button>
             ))}
           </div>
@@ -75,24 +84,29 @@ export function Navbar({ onNavigate }: NavbarProps) {
           <div className="flex items-center gap-2">
             <button
               onClick={openCart}
-              className="relative flex h-10 w-10 items-center justify-center rounded-full text-white/80 transition-all hover:bg-white/5 hover:text-white"
+              className="group relative flex h-10 items-center gap-2 rounded-full border border-transparent px-3 transition-all hover:border-[#2A2A2A] hover:bg-white/[0.02]"
               aria-label={`Open cart, ${totalItems} items`}
             >
-              <ShoppingBag className="h-5 w-5" />
-              {totalItems > 0 && (
-                <span
-                  key={totalItems}
-                  className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-crimson px-1 text-[10px] font-bold text-white animate-fade-in"
-                >
-                  {totalItems}
-                </span>
-              )}
+              <span className="hidden sm:inline font-mono-tech text-[10px] text-white/40 group-hover:text-white/60">
+                CART
+              </span>
+              <div className="relative">
+                <ShoppingBag className="h-5 w-5 text-white/70 transition-colors group-hover:text-white" />
+                {totalItems > 0 && (
+                  <span
+                    key={totalItems}
+                    className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF2D55] px-1 text-[9px] font-bold text-white animate-fade-in"
+                  >
+                    {totalItems}
+                  </span>
+                )}
+              </div>
             </button>
 
             {/* Mobile menu toggle */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-white/80 transition-all hover:bg-white/5 hover:text-white md:hidden"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-transparent text-white/80 transition-all hover:border-[#2A2A2A] hover:text-white md:hidden"
               aria-label="Toggle menu"
             >
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -108,17 +122,32 @@ export function Navbar({ onNavigate }: NavbarProps) {
           mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         )}
       >
-        <div className="flex h-full flex-col items-center justify-center gap-6">
+        {/* Grid overlay */}
+        <div className="absolute inset-0 grid-overlay opacity-50" />
+        <div className="relative flex h-full flex-col items-center justify-center gap-4">
+          {/* Technical label top */}
+          <div className="absolute top-24 left-6 flex items-center gap-2">
+            <span className="h-1 w-1 bg-[#FF2D55]" />
+            <span className="font-mono-tech text-[10px] text-white/40">MENU / NAVIGATION</span>
+          </div>
+
           {navItems.map((item) => (
             <button
               key={item.target}
               onClick={() => handleNav(item.target)}
-              className="font-display text-4xl font-bold tracking-tight text-white/80 transition-colors hover:text-white"
+              className="group flex items-center gap-3 transition-all hover:opacity-80"
             >
-              {item.label}
+              <span className="font-mono-tech text-xs text-[#FF2D55]">{item.num}</span>
+              <span className="font-display text-4xl font-bold tracking-tight text-white/80 transition-colors group-hover:text-white">
+                {item.label}
+              </span>
             </button>
           ))}
-          <div className="mt-8 font-jp text-sm text-white/30">ストリートスカウト</div>
+
+          <div className="mt-8 flex flex-col items-center gap-2">
+            <div className="font-jp text-sm tracking-wider text-white/30">ストリートスカウト</div>
+            <div className="font-mono-tech text-[10px] text-white/20">ANIME ATHLETICS · EST 2025</div>
+          </div>
         </div>
       </div>
     </>
