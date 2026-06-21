@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { X, Plus, Minus, Check, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Product } from '@/lib/types'
-import { sizes, formatINR } from '@/lib/data'
+import { parseSizes } from '@/lib/types'
+import { formatINR } from '@/lib/data'
 import { useCart } from '@/lib/cart-store'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -201,7 +202,7 @@ export function ProductDetail({ product, onClose }: ProductDetailProps) {
                 <span className="font-jp text-[10px] text-white/30">サイズ</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {sizes.map((size) => (
+                {parseSizes(product.sizes).map((size) => (
                   <button
                     key={size}
                     onClick={() => setSelectedSize(size)}

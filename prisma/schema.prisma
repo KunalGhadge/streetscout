@@ -25,6 +25,7 @@ model Product {
   fit          String
   breathability String
   durability   String
+  sizes        String   @default("XS,S,M,L,XL,XXL")
   imageFront   String
   imageBack    String
   accentColor  String   @default("accent")

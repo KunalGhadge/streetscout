@@ -13,6 +13,7 @@ export interface Product {
   fit: string
   breathability: string
   durability: string
+  sizes: string // comma-separated, e.g. "XS,S,M,L,XL,XXL"
   imageFront: string
   imageBack: string
   accentColor: string
@@ -56,4 +57,16 @@ export interface Lifestyle {
   description: string
   image: string
   order: number
+}
+
+// Default sizes used when creating a new product
+export const DEFAULT_SIZES = 'XS,S,M,L,XL,XXL'
+
+// Parse a comma-separated sizes string into an array
+export function parseSizes(sizes: string | undefined | null): string[] {
+  if (!sizes) return ['M']
+  return sizes
+    .split(',')
+    .map((s) => s.trim().toUpperCase())
+    .filter(Boolean)
 }

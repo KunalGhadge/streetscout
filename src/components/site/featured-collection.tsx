@@ -113,15 +113,14 @@ function ProductCard({
         <span className="font-mono-tech text-[9px] text-white/30">{product.universeJp}</span>
       </div>
 
-      {/* Product image */}
+      {/* Product image — object-contain so images never stretch or crop */}
       <div className="relative aspect-[3/4] overflow-hidden bg-[#080808]">
-        { }
         <img
           src={product.imageFront}
           alt={product.name}
           loading="lazy"
           className={cn(
-            'h-full w-full object-cover transition-transform duration-700',
+            'h-full w-full object-contain transition-transform duration-700',
             hovered && 'scale-105'
           )}
         />
