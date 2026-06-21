@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
         value: Math.max(0, Math.min(100, parseFloat(body.value) || 0)),
         giftName: String(body.giftName || '').slice(0, 200),
         minOrder: Math.max(0, parseFloat(body.minOrder) || 0),
+        usageLimit: Math.max(0, parseInt(body.usageLimit) || 0),
         isActive: body.isActive !== false,
         expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
       },

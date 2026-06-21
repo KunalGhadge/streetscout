@@ -88,11 +88,11 @@ export function CartDrawer() {
     }
   }
 
-  const handleWhatsAppCheckout = () => {
+  const handleWhatsAppCheckout = async () => {
     // Block checkout if store is not accepting orders
     if (!storeStatus.accepting) return
 
-    const url = getWhatsAppUrl(items, finalTotal, coupon, freeShipping)
+    const url = await getWhatsAppUrl(items, finalTotal, coupon, freeShipping)
     window.open(url, '_blank')
   }
 

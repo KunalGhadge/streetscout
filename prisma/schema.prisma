@@ -80,6 +80,8 @@ model Coupon {
   value       Float    @default(0) // percentage for DISCOUNT (e.g. 10 = 10% off)
   giftName    String   @default("") // for FREE_GIFT type
   minOrder    Float    @default(0) // minimum order amount to apply
+  usageLimit  Int      @default(0) // 0 = unlimited, N = first N users only
+  usedCount   Int      @default(0) // how many times used so far
   isActive    Boolean  @default(true)
   expiresAt   DateTime?
   createdAt   DateTime @default(now())
@@ -92,7 +94,7 @@ model StoreStatus {
   accepting    Boolean  @default(true) // false = orders paused
   message      String   @default("") // custom notification message
   createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  updatedAt   DateTime @updatedAt
 }
 
 // Admin-pushed notifications shown to users
@@ -106,3 +108,11 @@ model Notification {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// Key-value settings store (WhatsApp number, etc.)
+model Setting {
+  key       String   @id
+  value     String   @default("")
+  updatedAt DateTime @updatedAt
+}
+

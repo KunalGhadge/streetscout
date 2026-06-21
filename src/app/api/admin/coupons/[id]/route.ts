@@ -24,6 +24,7 @@ export async function PUT(
     if (body.value !== undefined) data.value = Math.max(0, Math.min(100, parseFloat(body.value) || 0))
     if (body.giftName !== undefined) data.giftName = String(body.giftName).slice(0, 200)
     if (body.minOrder !== undefined) data.minOrder = Math.max(0, parseFloat(body.minOrder) || 0)
+    if (body.usageLimit !== undefined) data.usageLimit = Math.max(0, parseInt(body.usageLimit) || 0)
     if (body.isActive !== undefined) data.isActive = Boolean(body.isActive)
     if (body.expiresAt !== undefined) {
       data.expiresAt = body.expiresAt ? new Date(body.expiresAt) : null

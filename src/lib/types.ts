@@ -29,6 +29,22 @@ export interface CartItem {
   quantity: number
 }
 
+export interface Coupon {
+  id: string
+  code: string
+  description: string
+  type: string
+  value: number
+  giftName: string
+  minOrder: number
+  usageLimit: number
+  usedCount: number
+  isActive: boolean
+  expiresAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Universe {
   id: string
   name: string

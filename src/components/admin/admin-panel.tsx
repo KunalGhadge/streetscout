@@ -18,6 +18,7 @@ import {
   Tag,
   Power,
   Bell,
+  Settings,
 } from 'lucide-react'
 import { ImageUpload } from '@/components/admin/image-upload'
 import { useToast } from '@/hooks/use-toast'
@@ -40,6 +41,7 @@ type TabId =
   | 'coupons'
   | 'store'
   | 'notifications'
+  | 'settings'
 
 interface Coupon {
   id: string
@@ -49,6 +51,8 @@ interface Coupon {
   value: number
   giftName: string
   minOrder: number
+  usageLimit: number
+  usedCount: number
   isActive: boolean
   expiresAt: string | null
   createdAt: string
@@ -393,6 +397,100 @@ function emptyProductForm(): ProductFormData {
   }
 }
 
+// ============================================================================
+// Select with custom-option fallback
+// ============================================================================
+
+interface PresetOption {
+  value: string
+  label: string
+}
+
+function SelectWithCustom({
+  value,
+  onChange,
+  presets,
+  selectPlaceholder,
+  customPlaceholder,
+  includeEmptyOption = true,
+}: {
+  value: string
+  onChange: (v: string) => void
+  presets: PresetOption[]
+  selectPlaceholder?: string
+  customPlaceholder?: string
+  includeEmptyOption?: boolean
+}) {
+  // If the current value matches one of the presets, show that as selected.
+  // If it's a non-empty non-preset value, show __custom mode + TextInput.
+  // If empty, show the placeholder (or first preset when includeEmptyOption=false).
+  const isPreset = presets.some((p) => p.value === value)
+  const selectValue = isPreset ? value : value ? '__custom' : includeEmptyOption ? '' : '__custom'
+
+  return (
+    <div className="space-y-2">
+      <select
+        value={selectValue}
+        onChange={(e) => {
+          const v = e.target.value
+          if (v === '__custom') {
+            // Switch to custom mode — clear preset so the TextInput shows
+            onChange(isPreset ? '' : value)
+          } else {
+            onChange(v)
+          }
+        }}
+        className="w-full border border-[#2A2A2A] bg-[#0a0a0a] px-3 py-2 text-sm text-white/80 focus:border-[#FF2D55] focus:outline-none"
+      >
+        {includeEmptyOption && (
+          <option value="">{selectPlaceholder || 'Select...'}</option>
+        )}
+        {presets.map((p) => (
+          <option key={p.value} value={p.value}>
+            {p.label}
+          </option>
+        ))}
+        <option value="__custom">+ Custom...</option>
+      </select>
+      {selectValue === '__custom' && (
+        <TextInput
+          value={value}
+          onChange={onChange}
+          placeholder={customPlaceholder || 'Enter custom value'}
+        />
+      )}
+    </div>
+  )
+}
+
+// Preset option lists shared by ProductForm
+const UNIVERSE_PRESETS: PresetOption[] = [
+  { value: 'Naruto', label: 'Naruto' },
+  { value: 'One Piece', label: 'One Piece' },
+  { value: 'Jujutsu Kaisen', label: 'Jujutsu Kaisen' },
+  { value: 'Attack on Titan', label: 'Attack on Titan' },
+  { value: 'Demon Slayer', label: 'Demon Slayer' },
+  { value: 'Solo Leveling', label: 'Solo Leveling' },
+]
+
+const COLLECTION_TAG_PRESETS: PresetOption[] = [
+  { value: 'NARUTO COLLECTION', label: 'NARUTO COLLECTION' },
+  { value: 'ONE PIECE COLLECTION', label: 'ONE PIECE COLLECTION' },
+  { value: 'JJK COLLECTION', label: 'JJK COLLECTION' },
+  { value: 'AOT COLLECTION', label: 'AOT COLLECTION' },
+  { value: 'DEMON SLAYER COLLECTION', label: 'DEMON SLAYER COLLECTION' },
+  { value: 'SOLO LEVELING COLLECTION', label: 'SOLO LEVELING COLLECTION' },
+]
+
+const DROP_NUMBER_PRESETS: PresetOption[] = [
+  { value: 'DROP-001', label: 'DROP-001' },
+  { value: 'DROP-002', label: 'DROP-002' },
+  { value: 'DROP-003', label: 'DROP-003' },
+  { value: 'DROP-004', label: 'DROP-004' },
+  { value: 'DROP-005', label: 'DROP-005' },
+  { value: 'DROP-006', label: 'DROP-006' },
+]
+
 function ProductForm({
   product,
   onSave,
@@ -478,26 +576,32 @@ function ProductForm({
         </Field>
 
         <Field label="Collection Tag">
-          <TextInput
+          <SelectWithCustom
             value={form.collectionTag}
             onChange={(v) => set('collectionTag', v)}
-            placeholder="SS-001"
+            presets={COLLECTION_TAG_PRESETS}
+            selectPlaceholder="Select tag..."
+            customPlaceholder="SS-001"
           />
         </Field>
 
         <Field label="Drop Number">
-          <TextInput
+          <SelectWithCustom
             value={form.dropNumber}
             onChange={(v) => set('dropNumber', v)}
-            placeholder="DROP-001"
+            presets={DROP_NUMBER_PRESETS}
+            includeEmptyOption={false}
+            customPlaceholder="DROP-007"
           />
         </Field>
 
         <Field label="Universe">
-          <TextInput
+          <SelectWithCustom
             value={form.universe}
             onChange={(v) => set('universe', v)}
-            placeholder="Naruto"
+            presets={UNIVERSE_PRESETS}
+            selectPlaceholder="Select universe..."
+            customPlaceholder="Naruto"
           />
         </Field>
 
@@ -952,6 +1056,7 @@ interface CouponFormData {
   value: string
   giftName: string
   minOrder: string
+  usageLimit: string
   isActive: boolean
   expiresAt: string // '' or datetime-local string
 }
@@ -964,6 +1069,7 @@ function emptyCouponForm(): CouponFormData {
     value: '0',
     giftName: '',
     minOrder: '0',
+    usageLimit: '0',
     isActive: true,
     expiresAt: '',
   }
@@ -989,6 +1095,7 @@ function CouponForm({
           value: String(item.value ?? 0),
           giftName: item.giftName || '',
           minOrder: String(item.minOrder ?? 0),
+          usageLimit: String(item.usageLimit || 0),
           isActive: item.isActive,
           expiresAt: item.expiresAt ? item.expiresAt.slice(0, 16) : '',
         }
@@ -1064,6 +1171,15 @@ function CouponForm({
             onChange={(v) => set('minOrder', v)}
             placeholder="0"
             type="number"
+          />
+        </Field>
+
+        <Field label="Usage Limit" hint="0 = unlimited, N = first N users only (e.g. 10 = first 10 customers)">
+          <TextInput
+            type="number"
+            value={form.usageLimit}
+            onChange={(v) => set('usageLimit', v)}
+            placeholder="0"
           />
         </Field>
 
@@ -1324,6 +1440,7 @@ const TABS: { id: TabId; label: string; jp: string; icon: typeof Package }[] = [
   { id: 'coupons', label: 'Coupons', jp: 'クーポン', icon: Tag },
   { id: 'store', label: 'Store', jp: 'ストア', icon: Power },
   { id: 'notifications', label: 'Alerts', jp: '通知', icon: Bell },
+  { id: 'settings', label: 'Settings', jp: '設定', icon: Settings },
 ]
 
 // ============================================================================
@@ -2113,6 +2230,7 @@ function CouponsTab() {
         value: parseFloat(data.value) || 0,
         giftName: data.giftName,
         minOrder: parseFloat(data.minOrder) || 0,
+        usageLimit: parseInt(data.usageLimit) || 0,
         isActive: data.isActive,
         expiresAt: data.expiresAt ? new Date(data.expiresAt).toISOString() : null,
       }
@@ -2236,11 +2354,14 @@ function CouponsTab() {
             <span className="col-span-2 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
               Type
             </span>
-            <span className="col-span-2 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+            <span className="col-span-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
               Value
             </span>
-            <span className="col-span-2 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+            <span className="col-span-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
               Min Order
+            </span>
+            <span className="col-span-2 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+              Usage
             </span>
             <span className="col-span-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
               Active
@@ -2270,7 +2391,7 @@ function CouponsTab() {
                   {c.type}
                 </span>
               </div>
-              <div className="col-span-4 md:col-span-2">
+              <div className="col-span-4 md:col-span-1">
                 {c.type === 'DISCOUNT' && (
                   <span className="text-sm font-medium text-white/90">{c.value}%</span>
                 )}
@@ -2283,8 +2404,19 @@ function CouponsTab() {
                   <span className="text-xs text-white/40">—</span>
                 )}
               </div>
-              <div className="col-span-4 md:col-span-2">
+              <div className="col-span-4 md:col-span-1">
                 <span className="text-sm text-white/70">{formatINR(c.minOrder)}</span>
+              </div>
+              <div className="col-span-12 md:col-span-2">
+                {c.usageLimit > 0 ? (
+                  <span className="font-mono-tech text-[11px] uppercase tracking-wider text-white/80">
+                    {c.usedCount || 0}/{c.usageLimit} used
+                  </span>
+                ) : (
+                  <span className="font-mono-tech text-[10px] uppercase tracking-wider text-white/40">
+                    Unlimited
+                  </span>
+                )}
               </div>
               <div className="col-span-6 md:col-span-1">
                 <button
@@ -2699,6 +2831,147 @@ function NotificationsTab() {
 }
 
 // ============================================================================
+// Settings Tab
+// ============================================================================
+
+// Format a raw WhatsApp number (digits only, with country code) for display.
+// Examples:  "918451818607" → "+91 8451818607"
+//            "8451818607"   → "+91 8451818607"  (assumes India)
+//            "12345"        → "+12345"
+function formatWhatsAppDisplay(raw: string): string {
+  const digits = raw.replace(/\D/g, '')
+  if (!digits) return ''
+  // Indian number: 10-digit national, optionally prefixed with 91
+  if (digits.length === 12 && digits.startsWith('91')) {
+    return `+91 ${digits.slice(2)}`
+  }
+  if (digits.length === 10) {
+    return `+91 ${digits}`
+  }
+  // Fallback: just show with leading +
+  return `+${digits}`
+}
+
+function SettingsTab() {
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [whatsapp, setWhatsapp] = useState('')
+
+  const fetchSettings = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/settings')
+      if (res.ok) {
+        const data: Record<string, string> = await res.json()
+        setWhatsapp(data.whatsapp_number || '')
+      }
+    } catch {
+      toast({ title: 'Failed to load settings', variant: 'destructive' })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ whatsapp_number: whatsapp }),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        toast({ title: 'Save failed', description: result.error, variant: 'destructive' })
+      } else {
+        toast({ title: 'Settings saved' })
+      }
+    } catch {
+      toast({ title: 'Network error', variant: 'destructive' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+      </div>
+    )
+  }
+
+  const displayNumber = formatWhatsAppDisplay(whatsapp)
+
+  return (
+    <div>
+      <SectionTitle
+        title="Settings"
+        jp="設定"
+        subtitle="Store-wide configuration"
+      />
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Editor */}
+        <div className="border border-[#2A2A2A] bg-[#0a0a0a] p-5">
+          <Field
+            label="WhatsApp Number"
+            hint="Include country code, no + or spaces. Example: 918451818607 for +91 8451818607"
+          >
+            <TextInput
+              value={whatsapp}
+              onChange={setWhatsapp}
+              placeholder="918451818607"
+            />
+          </Field>
+
+          <div className="mt-5 flex justify-end">
+            <PrimaryButton onClick={handleSave} loading={saving}>
+              Save Settings
+            </PrimaryButton>
+          </div>
+        </div>
+
+        {/* Preview */}
+        <div className="border border-[#2A2A2A] bg-[#0a0a0a] p-5">
+          <p className="mb-3 font-mono-tech text-[10px] uppercase tracking-wider text-white/40">
+            Order Routing Preview · 注文送信先
+          </p>
+          {displayNumber ? (
+            <div className="flex items-center gap-3 border border-[#22c55e]/30 bg-[#22c55e]/5 px-4 py-4">
+              <div className="h-2 w-2 flex-shrink-0 rounded-full bg-[#22c55e]" />
+              <div>
+                <p className="text-sm font-medium text-white/90">
+                  Orders will be sent to: {displayNumber}
+                </p>
+                <p className="font-mono-tech text-[10px] uppercase tracking-wider text-white/40">
+                  WhatsApp · メッセージ送信
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="border border-[#FF2D55]/30 bg-[#FF2D55]/5 px-4 py-4">
+              <div className="mb-2 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-[#FF2D55]" />
+                <p className="text-sm font-medium text-white/90">No number set</p>
+              </div>
+              <p className="text-sm text-white/70">
+                Enter a WhatsApp number above so new orders can be routed to the store owner.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
 // Main Admin Panel
 // ============================================================================
 
@@ -2839,6 +3112,7 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
             {activeTab === 'coupons' && <CouponsTab />}
             {activeTab === 'store' && <StoreStatusTab />}
             {activeTab === 'notifications' && <NotificationsTab />}
+            {activeTab === 'settings' && <SettingsTab />}
           </div>
         </main>
       </div>

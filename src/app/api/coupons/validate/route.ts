@@ -27,6 +27,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ valid: false, error: 'This code has expired' })
     }
 
+    // Check usage limit (0 = unlimited)
+    if (coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) {
+      return NextResponse.json({
+        valid: false,
+        error: `This code has reached its usage limit (${coupon.usageLimit} uses)`,
+      })
+    }
+
     // Check minimum order
     const total = parseFloat(cartTotal) || 0
     if (coupon.minOrder > 0 && total < coupon.minOrder) {
@@ -42,6 +50,12 @@ export async function POST(request: Request) {
       discountAmount = Math.round((total * coupon.value) / 100)
     }
 
+    // Increment usage count (the coupon is now "used" by this user)
+    await db.coupon.update({
+      where: { id: coupon.id },
+      data: { usedCount: { increment: 1 } },
+    })
+
     return NextResponse.json({
       valid: true,
       coupon: {
@@ -53,6 +67,8 @@ export async function POST(request: Request) {
         discountAmount,
         freeShipping: coupon.type === 'FREE_SHIPPING',
         description: coupon.description,
+        usageLimit: coupon.usageLimit,
+        usedCount: coupon.usedCount + 1,
       },
     })
   } catch (error) {

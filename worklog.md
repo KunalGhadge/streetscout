@@ -60,3 +60,53 @@ Stage Summary:
 - The Coupons and Notifications forms use the shared `FormShell` wrapper so the UX matches the existing product/universe/drop/lifestyle forms (same header with title + jp label, scrollable content area, fixed footer with Cancel + Save buttons, save-button loading spinner).
 - The Store Status tab is a custom single-panel editor with a live user-facing preview, distinct from the list-style tabs — appropriate because store status is a singleton record.
 - No existing functionality was broken: the 4 original tabs and the auth flow (login → auth-check → dashboard → logout) are untouched. All edits were surgical additions, not rewrites.
+
+---
+Task ID: 7-c
+Agent: full-stack-developer
+Task: Add 3 admin-panel improvements — dropdown suggestions in ProductForm, usage-limit field on coupons, and a Settings tab for WhatsApp number
+
+Work Log:
+- Read `/home/z/my-project/worklog.md` (Tasks 7 and 7-b context) and the existing `/home/z/my-project/src/components/admin/admin-panel.tsx` (2847 lines) to understand established patterns: shared primitives (`Field`, `TextInput`, `TextArea`, `Toggle`, `PrimaryButton`, `SecondaryButton`, `FormShell`, `SectionTitle`, `EmptyState`, `Thumb`, `ConfirmDialog`), dark premium palette (#050505 bg / #111111 surface / #2A2A2A border / #F5F5F5 text / #FF2D55 accent), `useToast` for feedback, `useCallback` fetch + `useEffect` refresh, sidebar that collapses to a horizontal scrollable tab strip on mobile, and the existing inline `<select>` style used in CouponForm/NotificationForm.
+- Verified backend support already exists: `prisma/schema.prisma` has `Coupon.usageLimit Int @default(0)` + `Coupon.usedCount Int @default(0)`; `POST /api/admin/coupons` and `PUT /api/admin/coupons/[id]` already accept `usageLimit` (parsed via `parseInt`); `GET/PUT /api/admin/settings` returns/upserts a key-value `Setting` table (so `whatsapp_number` is supported).
+- Made targeted edits to `src/components/admin/admin-panel.tsx` (now 3121 lines, +274 lines):
+
+  **Change 1 — Dropdown suggestions in ProductForm**
+  1. Added a new `SelectWithCustom` helper component (right after `emptyProductForm`) — a `<select>` with optional empty placeholder option, a list of preset `{value,label}` options, and a `+ Custom...` option (`__custom` sentinel). When the current value matches a preset, that preset is shown as selected. When the value is non-empty and not a preset, the select shows `__custom` and a TextInput appears below for free-form entry. The `<select>` uses the exact dark-theme styling requested (`border-[#2A2A2A] bg-[#0a0a0a] px-3 py-2 text-sm text-white/80 focus:border-[#FF2D55] focus:outline-none`).
+  2. Added three preset arrays: `UNIVERSE_PRESETS` (Naruto, One Piece, Jujutsu Kaisen, Attack on Titan, Demon Slayer, Solo Leveling), `COLLECTION_TAG_PRESETS` (NARUTO/ONE PIECE/JJK/AOT/DEMON SLAYER/SOLO LEVELING COLLECTION), `DROP_NUMBER_PRESETS` (DROP-001..DROP-006).
+  3. Replaced the three `TextInput`s in ProductForm with `SelectWithCustom`:
+     - **Collection Tag**: `selectPlaceholder="Select tag..."`, custom placeholder `SS-001`.
+     - **Drop Number**: `includeEmptyOption={false}` (no empty placeholder — defaults to DROP-001), custom placeholder `DROP-007`.
+     - **Universe**: `selectPlaceholder="Select universe..."`, custom placeholder `Naruto`.
+  4. Existing edit flows keep working: if a product's stored value is a preset, the select shows it directly; if it's a custom value (e.g., a "Bleach" universe from a prior manual entry), the select auto-switches to `__custom` mode and pre-fills the TextInput with that value.
+
+  **Change 2 — Usage Limit on coupons**
+  1. Extended the `Coupon` interface with two new fields: `usageLimit: number` and `usedCount: number` (both already returned by the backend; previously missing from the TS interface).
+  2. Added `usageLimit: '0'` (string) to the `CouponFormData` interface and `emptyCouponForm()` factory.
+  3. Seeded `usageLimit: String(item.usageLimit || 0)` when initializing the form from an existing coupon.
+  4. Added a new "Usage Limit" `Field` UI directly after "Min Order" in `CouponForm`, with hint `0 = unlimited, N = first N users only (e.g. 10 = first 10 customers)` and a number-typed TextInput.
+  5. Added `usageLimit: parseInt(data.usageLimit) || 0` to the save payload in `CouponsTab.handleSave`.
+  6. Added a new "Usage" column to the coupons list table (between "Min Order" and "Active"). Adjusted desktop col-spans to keep the 12-col grid balanced: Code(3) · Type(2) · Value(1, was 2) · Min Order(1, was 2) · Usage(2, new) · Active(1) · Actions(2) = 12. On mobile, the Usage cell takes `col-span-12` so it gets its own row. Display logic: if `usageLimit > 0` show `{usedCount}/{usageLimit} used` (e.g. `3/10 used`) in mono-tech text; otherwise show `Unlimited` in muted text.
+
+  **Change 3 — Settings tab**
+  1. Added `Settings` to the `lucide-react` import list.
+  2. Added `'settings'` to the `TabId` union type (now 8 values).
+  3. Added `{ id: 'settings', label: 'Settings', jp: '設定', icon: Settings }` to the `TABS` array (at the bottom — automatically renders last in both the desktop sidebar and the mobile horizontal tab strip).
+  4. Created a `SettingsTab` component (placed between `NotificationsTab` and the main `AdminPanel` export):
+     - Fetches `GET /api/admin/settings` (returns a `Record<string,string>` like `{ whatsapp_number: "918451818607" }`) on mount via `useCallback` + `useEffect`.
+     - Local state: `whatsapp` (string), `loading`, `saving`.
+     - Layout: 2-col grid on lg, single column on mobile. Left card = editor with a "WhatsApp Number" `Field` (TextInput, placeholder `918451818607`, hint `Include country code, no + or spaces. Example: 918451818607 for +91 8451818607`) + a "Save Settings" PrimaryButton. Right card = live preview that shows a green-bordered "Orders will be sent to: +91 8451818607" card when a number is set, or a pink-bordered "No number set" warning card (with AlertTriangle icon) when empty.
+     - On Save: `PUT /api/admin/settings` with body `{ whatsapp_number: value }`. Shows `useToast` success toast (`Settings saved`) on 2xx, or destructive toast with the API error message on failure.
+     - Loader2 spinner while loading initial settings.
+  5. Added a `formatWhatsAppDisplay` helper that converts a raw digit string into a friendly display format: `918451818607` → `+91 8451818607`, `8451818607` → `+91 8451818607` (assumes India), other lengths → `+{digits}`. Used by the preview card.
+  6. Added `{activeTab === 'settings' && <SettingsTab />}` to the main dashboard render section, after the notifications render.
+
+- Ran `cd /home/z/my-project && bun run lint` — 0 errors, 0 warnings on the modified file.
+- Ran `npx tsc --noEmit` — no errors in `src/components/admin/admin-panel.tsx` (only pre-existing unrelated errors in `examples/`, `skills/`, and `src/lib/whatsapp.ts`, which are out of scope).
+- Triggered `GET /` on the dev server to force a recompile — `200 OK` with `✓ Compiled in 161ms` and no error trace in `dev.log`.
+
+Stage Summary:
+- The admin panel now exposes 8 tabs (the previous 7 plus Settings) and the ProductForm uses dropdown selects with `+ Custom...` fallback for Universe, Collection Tag, and Drop Number — drastically reducing typing for the common case while still allowing arbitrary custom values.
+- Coupons now support a `usageLimit` field (0 = unlimited, N = first N customers) end-to-end: form UI, save payload, and a new "Usage" column in the coupons list that shows `{usedCount}/{usageLimit} used` or `Unlimited`. Backend support was already in place (schema + API routes).
+- A new Settings tab lets the admin set the store's WhatsApp number (`whatsapp_number` setting) with a live preview of how orders will be routed, persisted via the existing `/api/admin/settings` route. The number is stored as raw digits (e.g. `918451818607`) and displayed as `+91 8451818607` for clarity.
+- All edits were surgical additions/modifications — no existing functionality was removed. The 4 original tabs (Products, Universes, Drops, Lifestyle) and the 3 tabs added in Task 7-b (Coupons, Store, Alerts) plus the auth flow (login → auth-check → dashboard → logout) remain fully intact.
