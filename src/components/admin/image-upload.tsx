@@ -25,6 +25,7 @@ export function ImageUpload({ value, onChange, label = 'Image' }: ImageUploadPro
       const res = await fetch('/api/admin/upload', {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       })
 
       const data = await res.json()
