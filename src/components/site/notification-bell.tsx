@@ -169,9 +169,16 @@ export function NotificationBell() {
           )}
         </button>
 
-        {/* Dropdown */}
+        {/* Dropdown — fixed positioning to avoid overflow on mobile */}
         {isOpen && (
-          <div className="absolute right-0 top-12 z-50 w-80 max-w-[calc(100vw-2rem)] overflow-hidden border border-[#2A2A2A] bg-[#0a0a0a] shadow-2xl animate-slide-up-fade">
+          <div
+            className="fixed z-50 w-[calc(100vw-2rem)] max-w-sm overflow-hidden border border-[#2A2A2A] bg-[#0a0a0a] shadow-2xl animate-slide-up-fade"
+            style={{
+              top: '4rem',
+              right: '1rem',
+              maxHeight: 'calc(100vh-6rem)',
+            }}
+          >
             {/* Header */}
             <div className="flex items-center justify-between border-b border-[#2A2A2A] px-4 py-3">
               <div className="flex items-center gap-2">
