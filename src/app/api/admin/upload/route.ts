@@ -9,8 +9,14 @@ const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 const MAX_WIDTH = 1200
 const MAX_HEIGHT = 1600
 
-// Check if Vercel Blob is configured (production)
-const BLOB_CONFIGURED = !!process.env.BLOB_READ_WRITE_TOKEN
+/**
+ * Check if we're running on Vercel (production) — use Blob storage
+ * Otherwise (local dev) — use local filesystem
+ */
+function isVercelProduction(): boolean {
+  // Vercel sets this automatically
+  return process.env.VERCEL === '1' || !!process.env.BLOB_READ_WRITE_TOKEN
+}
 
 export async function POST(request: NextRequest) {
   if (!isAuthenticated(request)) {
@@ -55,7 +61,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Optimize image with sharp (available in both environments)
+    // Optimize image with sharp
     const sharp = (await import('sharp')).default
     const optimizedBuffer = await sharp(buffer)
       .resize(MAX_WIDTH, MAX_HEIGHT, {
@@ -65,11 +71,12 @@ export async function POST(request: NextRequest) {
       .webp({ quality: 85 })
       .toBuffer()
 
-    // PRODUCTION: Use Vercel Blob Storage
-    if (BLOB_CONFIGURED) {
+    const filename = `${crypto.randomUUID()}.webp`
+
+    // PRODUCTION (Vercel): Use Vercel Blob Storage
+    if (isVercelProduction()) {
       try {
         const { put } = await import('@vercel/blob')
-        const filename = `${crypto.randomUUID()}.webp`
         const blob = await put(filename, optimizedBuffer, {
           access: 'public',
           contentType: 'image/webp',
@@ -82,21 +89,20 @@ export async function POST(request: NextRequest) {
       } catch (blobError: any) {
         console.error('Vercel Blob error:', blobError)
         return NextResponse.json(
-          { error: 'Image upload failed. Check Blob configuration.' },
+          { error: 'Image upload failed: ' + (blobError.message || 'Blob error') },
           { status: 500 }
         )
       }
     }
 
-    // DEVELOPMENT: Save to local filesystem
-    const safeName = `${crypto.randomUUID()}.webp`
+    // DEVELOPMENT (local): Save to local filesystem
     const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads')
-    const filePath = path.join(UPLOAD_DIR, safeName)
+    const filePath = path.join(UPLOAD_DIR, filename)
     await mkdir(UPLOAD_DIR, { recursive: true })
     await writeFile(filePath, optimizedBuffer)
 
     return NextResponse.json({
-      url: `/uploads/${safeName}`,
+      url: `/uploads/${filename}`,
       size: file.size,
       optimized: true,
     })
