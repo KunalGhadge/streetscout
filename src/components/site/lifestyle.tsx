@@ -1,10 +1,20 @@
 'use client'
 
-import { lifestyleImages } from '@/lib/data'
+import { useState, useEffect } from 'react'
 import { Reveal } from './reveal'
 import { SectionHeader } from './section-header'
+import type { Lifestyle as LifestyleItem } from '@/lib/types'
 
 export function Lifestyle() {
+  const [items, setItems] = useState<LifestyleItem[]>([])
+
+  useEffect(() => {
+    fetch('/api/content/lifestyle')
+      .then((r) => r.json())
+      .then(setItems)
+      .catch(console.error)
+  }, [])
+
   return (
     <section id="lifestyle" className="relative bg-[#050505] py-20 sm:py-28">
       {/* Grid overlay */}
@@ -26,38 +36,46 @@ export function Lifestyle() {
         {/* Lookbook grid - asymmetric editorial layout */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-12 sm:gap-4">
           {/* Large feature image - left */}
-          <Reveal className="sm:col-span-7" delay={0}>
-            <LookbookCard
-              image={lifestyleImages[0]}
-              className="aspect-[16/10] sm:aspect-[16/11]"
-              large
-            />
-          </Reveal>
+          {items[0] && (
+            <Reveal className="sm:col-span-7" delay={0}>
+              <LookbookCard
+                image={items[0]}
+                className="aspect-[16/10] sm:aspect-[16/11]"
+                large
+              />
+            </Reveal>
+          )}
 
           {/* Right column - 2 stacked images */}
           <div className="grid grid-cols-1 gap-3 sm:col-span-5 sm:gap-4">
-            <Reveal delay={100}>
-              <LookbookCard
-                image={lifestyleImages[1]}
-                className="aspect-[16/10] sm:aspect-[16/9]"
-              />
-            </Reveal>
-            <Reveal delay={200}>
-              <LookbookCard
-                image={lifestyleImages[2]}
-                className="aspect-[16/10] sm:aspect-[16/9]"
-              />
-            </Reveal>
+            {items[1] && (
+              <Reveal delay={100}>
+                <LookbookCard
+                  image={items[1]}
+                  className="aspect-[16/10] sm:aspect-[16/9]"
+                />
+              </Reveal>
+            )}
+            {items[2] && (
+              <Reveal delay={200}>
+                <LookbookCard
+                  image={items[2]}
+                  className="aspect-[16/10] sm:aspect-[16/9]"
+                />
+              </Reveal>
+            )}
           </div>
 
           {/* Bottom wide image */}
-          <Reveal className="sm:col-span-12" delay={150}>
-            <LookbookCard
-              image={lifestyleImages[3]}
-              className="aspect-[16/7]"
-              wide
-            />
-          </Reveal>
+          {items[3] && (
+            <Reveal className="sm:col-span-12" delay={150}>
+              <LookbookCard
+                image={items[3]}
+                className="aspect-[16/7]"
+                wide
+              />
+            </Reveal>
+          )}
         </div>
 
         {/* Brand statement */}
@@ -92,7 +110,7 @@ function LookbookCard({
   large = false,
   wide = false,
 }: {
-  image: { src: string; label: string; japanese: string; tag: string; description: string }
+  image: LifestyleItem
   className?: string
   large?: boolean
   wide?: boolean
@@ -102,7 +120,7 @@ function LookbookCard({
       {/* Image */}
       { }
       <img
-        src={image.src}
+        src={image.image}
         alt={image.label}
         loading="lazy"
         className="absolute inset-0 h-full w-full object-cover opacity-75 transition-all duration-700 group-hover:scale-105 group-hover:opacity-90"

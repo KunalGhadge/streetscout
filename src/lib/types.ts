@@ -34,4 +34,26 @@ export interface Universe {
   japanese: string
   dropNumber: string
   image: string
+  order: number
+}
+
+export interface Drop {
+  id: string
+  number: string
+  japanese: string
+  title: string
+  description: string
+  status: string
+  image: string
+  order: number
+}
+
+export interface Lifestyle {
+  id: string
+  label: string
+  japanese: string
+  tag: string
+  description: string
+  image: string
+  order: number
 }

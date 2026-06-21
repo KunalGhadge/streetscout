@@ -1,15 +1,25 @@
 'use client'
 
-import { universes } from '@/lib/data'
+import { useState, useEffect } from 'react'
 import { Reveal } from './reveal'
 import { SectionHeader } from './section-header'
 import { ArrowUpRight } from 'lucide-react'
+import type { Universe } from '@/lib/types'
 
 interface ShopByUniverseProps {
-  onSelectUniverse: (universeId: string) => void
+  onSelectUniverse: (universeName: string, universeJp: string) => void
 }
 
 export function ShopByUniverse({ onSelectUniverse }: ShopByUniverseProps) {
+  const [universes, setUniverses] = useState<Universe[]>([])
+
+  useEffect(() => {
+    fetch('/api/content/universes')
+      .then((r) => r.json())
+      .then(setUniverses)
+      .catch(console.error)
+  }, [])
+
   return (
     <section id="universes" className="relative bg-[#070707] py-20 sm:py-28">
       {/* Grid overlay */}
@@ -33,7 +43,7 @@ export function ShopByUniverse({ onSelectUniverse }: ShopByUniverseProps) {
           {universes.map((universe, index) => (
             <Reveal key={universe.id} delay={index * 60}>
               <button
-                onClick={() => onSelectUniverse(universe.id)}
+                onClick={() => onSelectUniverse(universe.name, universe.japanese)}
                 className={`group relative aspect-[4/5] w-full overflow-hidden bg-[#111111] border border-[#2A2A2A] hover:border-[#FF2D55]/50 transition-colors duration-400 ${
                   index === 0 ? 'sm:col-span-2 sm:aspect-[16/10] lg:col-span-2 lg:aspect-[16/10]' : ''
                 }`}

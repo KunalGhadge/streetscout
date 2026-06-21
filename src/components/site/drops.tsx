@@ -1,41 +1,25 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Reveal } from './reveal'
 import { SectionHeader } from './section-header'
 import { ArrowRight } from 'lucide-react'
+import type { Drop } from '@/lib/types'
 
 interface DropsProps {
   onShopClick: () => void
 }
 
-const drops = [
-  {
-    number: 'DROP-001',
-    japanese: 'ナルト',
-    title: 'Hokage Legacy',
-    description: 'The founding drop. Channeling the spirit of the hidden leaf with premium mesh construction and reinforced stitching.',
-    status: 'AVAILABLE',
-    image: '/images/universe-naruto.png',
-  },
-  {
-    number: 'DROP-003',
-    japanese: '呪術廻戦',
-    title: 'Cursed Energy',
-    description: 'Occult-inspired compression wear. Form-fitting and built for those who walk between worlds.',
-    status: 'AVAILABLE',
-    image: '/images/universe-jjk.png',
-  },
-  {
-    number: 'DROP-006',
-    japanese: '俺だけレベルアップな件',
-    title: 'Shadow Monarch',
-    description: 'The flagship. Premium tech fleece with glowing rune detailing for the ultimate solo player.',
-    status: 'LIMITED',
-    image: '/images/universe-sololeveling.png',
-  },
-]
-
 export function Drops({ onShopClick }: DropsProps) {
+  const [drops, setDrops] = useState<Drop[]>([])
+
+  useEffect(() => {
+    fetch('/api/content/drops')
+      .then((r) => r.json())
+      .then(setDrops)
+      .catch(console.error)
+  }, [])
+
   return (
     <section id="drops" className="relative bg-[#030303] py-20 sm:py-28">
       {/* Grid overlay */}
@@ -66,7 +50,7 @@ export function Drops({ onShopClick }: DropsProps) {
         {/* Drops list - editorial rows */}
         <div className="space-y-3">
           {drops.map((drop, index) => (
-            <Reveal key={drop.number} delay={index * 100}>
+            <Reveal key={drop.id} delay={index * 100}>
               <button
                 onClick={onShopClick}
                 className="group relative w-full overflow-hidden border border-[#2A2A2A] bg-[#0a0a0a] text-left transition-colors hover:border-[#FF2D55]/50"

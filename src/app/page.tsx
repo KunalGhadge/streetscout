@@ -12,7 +12,7 @@ import { CartDrawer } from '@/components/site/cart-drawer'
 import { Footer } from '@/components/site/footer'
 import { FlyToCart } from '@/components/site/fly-to-cart'
 import { LoadingScreen } from '@/components/site/loading-screen'
-import { universes, lifestyleImages } from '@/lib/data'
+import { AdminPanel } from '@/components/admin/admin-panel'
 import type { Product } from '@/lib/types'
 
 export default function Home() {
@@ -21,12 +21,21 @@ export default function Home() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
   const [showLoader, setShowLoader] = useState(true)
+  const [showAdmin, setShowAdmin] = useState(false)
 
-  // Collect all heavy images to preload
+  // Collect all heavy images to preload (static ones only; dynamic content loads via API)
   const preloadImages = [
     '/images/hero-bg.png',
-    ...universes.map((u) => u.image),
-    ...lifestyleImages.map((l) => l.src),
+    '/images/universe-naruto.png',
+    '/images/universe-onepiece.png',
+    '/images/universe-jjk.png',
+    '/images/universe-aot.png',
+    '/images/universe-demonslayer.png',
+    '/images/universe-sololeveling.png',
+    '/images/lifestyle-college.png',
+    '/images/lifestyle-streetwear.png',
+    '/images/lifestyle-gaming.png',
+    '/images/lifestyle-animeevent.png',
   ]
 
   // Fetch products
@@ -50,6 +59,27 @@ export default function Home() {
     fetchProducts()
   }, [])
 
+  // Admin panel trigger: ?admin=1 in URL OR Ctrl+Shift+A keyboard shortcut
+  useEffect(() => {
+    // Check URL for ?admin=1
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('admin') === '1') {
+        setShowAdmin(true)
+      }
+    }
+
+    // Keyboard shortcut: Ctrl+Shift+A (or Cmd+Shift+A on Mac)
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault()
+        setShowAdmin((prev) => !prev)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   // Navigation - smooth scroll to sections
   const handleNavigate = useCallback((section: string) => {
     if (section === 'hero') {
@@ -66,13 +96,10 @@ export default function Home() {
 
   // Universe selection - open product detail for the universe
   const handleSelectUniverse = useCallback(
-    (universeId: string) => {
-      const universe = universes.find((u) => u.id === universeId)
-      if (!universe) return
-
+    (universeName: string, _universeJp: string) => {
       // Find a product from this universe
       const product = products.find((p) =>
-        p.universe.toLowerCase().includes(universe.name.toLowerCase())
+        p.universe.toLowerCase().includes(universeName.toLowerCase())
       )
       if (product) {
         setSelectedProduct(product)
@@ -135,6 +162,9 @@ export default function Home() {
         <CartDrawer />
         <FlyToCart />
       </div>
+
+      {/* Admin Panel — triggered by ?admin=1 or Ctrl+Shift+A */}
+      {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
     </>
   )
 }
