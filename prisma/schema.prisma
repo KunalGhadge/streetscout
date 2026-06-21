@@ -6,10 +6,8 @@ generator client {
 }
 
 datasource db {
-  // LOCAL DEV: SQLite (current setup)
-  // PRODUCTION (Vercel): Change "sqlite" to "postgresql" before deploying
-  // See README.md → "Deployment to Vercel" section for instructions
-  provider = "sqlite"
+  // PostgreSQL for production (Vercel)
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
