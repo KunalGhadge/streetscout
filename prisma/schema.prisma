@@ -6,6 +6,9 @@ generator client {
 }
 
 datasource db {
+  // LOCAL DEV: SQLite (current setup)
+  // PRODUCTION (Vercel): Change "sqlite" to "postgresql" before deploying
+  // See README.md → "Deployment to Vercel" section for instructions
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
@@ -94,7 +97,7 @@ model StoreStatus {
   accepting    Boolean  @default(true) // false = orders paused
   message      String   @default("") // custom notification message
   createdAt    DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt    DateTime @updatedAt
 }
 
 // Admin-pushed notifications shown to users
@@ -115,4 +118,3 @@ model Setting {
   value     String   @default("")
   updatedAt DateTime @updatedAt
 }
-

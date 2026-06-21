@@ -3,15 +3,14 @@ import { isAuthenticated } from '@/lib/auth'
 import { writeFile, mkdir } from 'fs/promises'
 import path from 'path'
 import crypto from 'crypto'
-import sharp from 'sharp'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const MAX_SIZE = 5 * 1024 * 1024 // 5MB
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads')
-
-// Max dimensions for product images (preserves aspect ratio, no stretching)
 const MAX_WIDTH = 1200
 const MAX_HEIGHT = 1600
+
+// Check if Vercel Blob is configured (production)
+const BLOB_CONFIGURED = !!process.env.BLOB_READ_WRITE_TOKEN
 
 export async function POST(request: NextRequest) {
   if (!isAuthenticated(request)) {
@@ -26,7 +25,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    // Validate file type
     if (!ALLOWED_TYPES.includes(file.type)) {
       return NextResponse.json(
         { error: `Invalid file type. Allowed: JPG, PNG, WebP, GIF` },
@@ -34,7 +32,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Validate file size
     if (file.size > MAX_SIZE) {
       return NextResponse.json(
         { error: 'File too large. Max 5MB.' },
@@ -42,11 +39,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Read file bytes
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    // Validate magic bytes (prevent fake extensions)
+    // Validate magic bytes
     const isJpg = buffer[0] === 0xff && buffer[1] === 0xd8
     const isPng = buffer[0] === 0x89 && buffer[1] === 0x50
     const isWebp = buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46
@@ -59,24 +55,45 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate safe filename
-    const safeName = `${crypto.randomUUID()}.webp`
-    const filePath = path.join(UPLOAD_DIR, safeName)
-
-    // Ensure upload directory exists
-    await mkdir(UPLOAD_DIR, { recursive: true })
-
-    // Optimize and resize the image using sharp:
-    // - Convert to WebP for smaller file size and better quality
-    // - Resize to max dimensions while PRESERVING aspect ratio (no stretching)
-    // - Use 'inside' fit so the image fits within bounds without cropping
-    await sharp(buffer)
+    // Optimize image with sharp (available in both environments)
+    const sharp = (await import('sharp')).default
+    const optimizedBuffer = await sharp(buffer)
       .resize(MAX_WIDTH, MAX_HEIGHT, {
-        fit: 'inside',       // preserve aspect ratio, no stretch
-        withoutEnlargement: true, // don't upscale small images
+        fit: 'inside',
+        withoutEnlargement: true,
       })
       .webp({ quality: 85 })
-      .toFile(filePath)
+      .toBuffer()
+
+    // PRODUCTION: Use Vercel Blob Storage
+    if (BLOB_CONFIGURED) {
+      try {
+        const { put } = await import('@vercel/blob')
+        const filename = `${crypto.randomUUID()}.webp`
+        const blob = await put(filename, optimizedBuffer, {
+          access: 'public',
+          contentType: 'image/webp',
+        })
+        return NextResponse.json({
+          url: blob.url,
+          size: file.size,
+          optimized: true,
+        })
+      } catch (blobError: any) {
+        console.error('Vercel Blob error:', blobError)
+        return NextResponse.json(
+          { error: 'Image upload failed. Check Blob configuration.' },
+          { status: 500 }
+        )
+      }
+    }
+
+    // DEVELOPMENT: Save to local filesystem
+    const safeName = `${crypto.randomUUID()}.webp`
+    const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads')
+    const filePath = path.join(UPLOAD_DIR, safeName)
+    await mkdir(UPLOAD_DIR, { recursive: true })
+    await writeFile(filePath, optimizedBuffer)
 
     return NextResponse.json({
       url: `/uploads/${safeName}`,

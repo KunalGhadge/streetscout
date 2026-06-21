@@ -30,12 +30,17 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files — NEVER commit these (contains secrets!)
+.env
+.env.local
+.env.production
+.env.production.local
+
+# Keep the example file (safe to commit)
+!.env.example
 
 # vercel
 .vercel
-
 
 # typescript
 *.tsbuildinfo
@@ -49,6 +54,18 @@ dev.out.log
 test
 prompt
 
+# Database (SQLite — local dev only)
+db/*.db
+db/*.db-journal
+
+# Uploaded images (local dev only — production uses Vercel Blob)
+public/uploads/*
+
+# Server logs
 server.log
+
 # Skills directory
 /skills/
+
+# Worklog (internal)
+worklog.md
