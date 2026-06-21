@@ -99,13 +99,12 @@ export function ProductDetail({ product, onClose }: ProductDetailProps) {
             {/* Grid overlay */}
             <div className="absolute inset-0 grid-overlay opacity-20" />
 
-            {/* Main image */}
+            {/* Main image — object-contain so product images never stretch */}
             <div className="relative aspect-[3/4] overflow-hidden bg-[#0a0a0a] border border-[#2A2A2A]">
-              { }
               <img
                 src={images[activeImage].src}
                 alt={product.name}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
               />
 
               {/* Corner brackets */}
@@ -138,11 +137,10 @@ export function ProductDetail({ product, onClose }: ProductDetailProps) {
                       : 'border-[#2A2A2A] hover:border-white/30'
                   )}
                 >
-                  { }
                   <img
                     src={img.src}
                     alt={`${product.name} ${img.label}`}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain"
                   />
                 </button>
               ))}

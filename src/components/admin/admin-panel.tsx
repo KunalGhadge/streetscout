@@ -324,6 +324,7 @@ interface ProductFormData {
   fit: string
   breathability: string
   durability: string
+  sizes: string
   imageFront: string
   imageBack: string
   isFeatured: boolean
@@ -345,6 +346,7 @@ function emptyProductForm(): ProductFormData {
     fit: '',
     breathability: '',
     durability: '',
+    sizes: 'XS,S,M,L,XL,XXL',
     imageFront: '',
     imageBack: '',
     isFeatured: false,
@@ -379,6 +381,7 @@ function ProductForm({
           fit: product.fit,
           breathability: product.breathability,
           durability: product.durability,
+          sizes: product.sizes || 'XS,S,M,L,XL,XXL',
           imageFront: product.imageFront,
           imageBack: product.imageBack,
           isFeatured: product.isFeatured,
@@ -509,6 +512,16 @@ function ProductForm({
             placeholder="9/10"
           />
         </Field>
+
+        <div className="md:col-span-2">
+          <Field label="Available Sizes" hint="Comma-separated, e.g. XS,S,M,L,XL,XXL">
+            <TextInput
+              value={form.sizes}
+              onChange={(v) => set('sizes', v)}
+              placeholder="XS,S,M,L,XL,XXL"
+            />
+          </Field>
+        </div>
 
         <div className="md:col-span-2">
           <Field label="Front Image">
@@ -879,7 +892,7 @@ function Thumb({ src, alt }: { src: string; alt: string }) {
   return (
     <div className="h-12 w-12 flex-shrink-0 overflow-hidden border border-[#2A2A2A] bg-[#0a0a0a]">
       {src ? (
-        <img src={src} alt={alt} className="h-full w-full object-cover" />
+        <img src={src} alt={alt} className="h-full w-full object-contain" />
       ) : (
         <div className="flex h-full w-full items-center justify-center">
           <Package className="h-4 w-4 text-white/20" />
