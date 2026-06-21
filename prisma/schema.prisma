@@ -116,3 +116,42 @@ model Setting {
   value     String   @default("")
   updatedAt DateTime @updatedAt
 }
+
+// Affiliate program — partner with creators who get custom promo codes
+model Affiliate {
+  id              String   @id @default(cuid())
+  code            String   @unique // e.g., NARUTO10 — what customers enter
+  creatorName     String   // e.g., @anime_fan_page
+  platform        String   @default("Instagram") // Instagram, YouTube, TikTok, etc.
+  contact         String   @default("") // WhatsApp/email to reach creator for payout
+
+  // Customer reward (what the buyer gets)
+  rewardType      String   @default("DISCOUNT") // DISCOUNT | FREE_GIFT | NONE
+  rewardValue     Float    @default(0) // percentage off (e.g., 10 = 10%)
+  rewardGiftName  String   @default("") // for FREE_GIFT type
+
+  // Creator commission (what the partner earns per sale)
+  commissionType  String   @default("PERCENTAGE") // PERCENTAGE | FIXED
+  commissionValue Float    @default(10) // % of order total OR fixed ₹ amount
+
+  isActive        Boolean  @default(true)
+  orders          AffiliateOrder[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Track every order that used an affiliate code
+// This is the "source of truth" for payouts — only CONFIRMED orders count
+model AffiliateOrder {
+  id              String   @id @default(cuid())
+  affiliateId     String
+  affiliate       Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  code            String   // snapshot of the code used (in case affiliate is deleted)
+  creatorName     String   // snapshot of creator name
+  orderTotal      Float    // final total after discount
+  commissionDue   Float    // calculated commission amount in ₹
+  status          String   @default("PENDING") // PENDING | CONFIRMED | CANCELLED
+  customerNote    String   @default("") // optional note (e.g., "out of stock")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}

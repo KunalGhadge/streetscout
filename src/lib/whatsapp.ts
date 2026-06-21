@@ -1,15 +1,11 @@
 import type { CartItem } from './types'
-import type { AppliedCoupon } from './cart-store'
+import type { AppliedCoupon, AppliedAffiliate } from './cart-store'
 
 // Fallback WhatsApp number (used if settings API fails)
 const FALLBACK_WHATSAPP_NUMBER = '918451818607'
 
-// Cache the WhatsApp number so we don't fetch on every checkout
 let cachedNumber: string | null = null
 
-/**
- * Fetch the WhatsApp number from the settings API
- */
 export async function getWhatsAppNumber(): Promise<string> {
   if (cachedNumber) return cachedNumber
   try {
@@ -30,6 +26,7 @@ export function generateWhatsAppMessage(
   items: CartItem[],
   total: number,
   coupon?: AppliedCoupon | null,
+  affiliate?: AppliedAffiliate | null,
   freeShipping?: boolean
 ): string {
   const lines = items.map((item, index) => {
@@ -38,9 +35,8 @@ export function generateWhatsAppMessage(
     return `${index + 1}. ${product.name} (${size}) x${quantity} — ${formatINR(itemTotal)}`
   })
 
-  // Calculate totals
   const subtotal = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
-  const discount = coupon?.discountAmount || 0
+  const discount = coupon?.discountAmount || affiliate?.discountAmount || 0
   const finalTotal = Math.max(0, subtotal - discount)
 
   let message = `Hey Street Scout! I'd like to order:\n\n${lines.join('\n')}`
@@ -54,6 +50,16 @@ export function generateWhatsAppMessage(
       message += ` (Free Shipping)`
     } else if (coupon.type === 'FREE_GIFT' && coupon.giftName) {
       message += ` (Free Gift: ${coupon.giftName})`
+    }
+  }
+
+  // Add affiliate info if applied
+  if (affiliate) {
+    message += `\n\nAffiliate Code: ${affiliate.code} (${affiliate.creatorName})`
+    if (affiliate.rewardType === 'DISCOUNT') {
+      message += ` — ${affiliate.rewardValue}% off`
+    } else if (affiliate.rewardType === 'FREE_GIFT' && affiliate.rewardGiftName) {
+      message += ` — Free Gift: ${affiliate.rewardGiftName}`
     }
   }
 
@@ -73,16 +79,14 @@ export function generateWhatsAppMessage(
   return encodeURIComponent(message)
 }
 
-/**
- * Get the WhatsApp URL — fetches the number from settings API
- */
 export async function getWhatsAppUrl(
   items: CartItem[],
   total: number,
   coupon?: AppliedCoupon | null,
+  affiliate?: AppliedAffiliate | null,
   freeShipping?: boolean
 ): Promise<string> {
   const number = await getWhatsAppNumber()
-  const message = generateWhatsAppMessage(items, total, coupon, freeShipping)
+  const message = generateWhatsAppMessage(items, total, coupon, affiliate, freeShipping)
   return `https://wa.me/${number}?text=${message}`
 }

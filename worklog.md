@@ -110,3 +110,96 @@ Stage Summary:
 - Coupons now support a `usageLimit` field (0 = unlimited, N = first N customers) end-to-end: form UI, save payload, and a new "Usage" column in the coupons list that shows `{usedCount}/{usageLimit} used` or `Unlimited`. Backend support was already in place (schema + API routes).
 - A new Settings tab lets the admin set the store's WhatsApp number (`whatsapp_number` setting) with a live preview of how orders will be routed, persisted via the existing `/api/admin/settings` route. The number is stored as raw digits (e.g. `918451818607`) and displayed as `+91 8451818607` for clarity.
 - All edits were surgical additions/modifications — no existing functionality was removed. The 4 original tabs (Products, Universes, Drops, Lifestyle) and the 3 tabs added in Task 7-b (Coupons, Store, Alerts) plus the auth flow (login → auth-check → dashboard → logout) remain fully intact.
+
+---
+Task ID: 7-d
+Agent: full-stack-developer
+Task: Add Affiliates + Affiliate Dashboard tabs to existing admin panel
+
+Work Log:
+- Read `/home/z/my-project/worklog.md` (Tasks 7, 7-b, 7-c context) and the existing `/home/z/my-project/src/components/admin/admin-panel.tsx` (3121 lines) to understand established patterns: shared primitives (`Field`, `TextInput`, `TextArea`, `Toggle`, `PrimaryButton`, `SecondaryButton`, `FormShell`, `SectionTitle`, `EmptyState`, `Thumb`, `ConfirmDialog`), dark premium palette (#050505 bg / #111111 surface / #2A2A2A border / #F5F5F5 text / #FF2D55 accent / #22c55e green / #f59e0b amber), `useToast` for feedback, `useCallback` fetch + `useEffect` refresh, responsive sidebar that collapses to a horizontal scrollable tab strip on mobile, and the inline `<select>` style used in CouponForm/NotificationForm.
+- Verified the 4 affiliate admin API routes already exist: `src/app/api/admin/affiliates/{route.ts,[id]/route.ts}`, `src/app/api/admin/affiliate-orders/{route.ts,[id]/route.ts}`. Confirmed the backend returns `Affiliate.stats` (computed from joined orders) and supports `DELETE` (which auto-deactivates if confirmed orders exist) and `PUT` for both affiliate records and order status.
+- Made targeted edits to `src/components/admin/admin-panel.tsx` (now 4173 lines, +1052 lines):
+
+  **Change 1 — Imports**
+  Added `Users` and `BarChart3` to the lucide-react import list (2 new icons).
+
+  **Change 2 — TabId type**
+  Extended the union with `'affiliates' | 'affiliateDashboard'` (now 10 values).
+
+  **Change 3 — Types**
+  Added two new interfaces right after `AdminNotification`:
+  - `Affiliate` (id, code, creatorName, platform, contact, rewardType, rewardValue, rewardGiftName, commissionType, commissionValue, isActive, createdAt, optional nested `stats` object with totalOrders/confirmedOrders/pendingOrders/cancelledOrders/totalRevenue/totalCommission/pendingCommission).
+  - `AffiliateOrder` (id, affiliateId, code, creatorName, orderTotal, commissionDue, status, customerNote, createdAt, optional nested `affiliate` object).
+
+  **Change 4 — TABS array**
+  Added 2 new entries after Settings: `{ id: 'affiliates', label: 'Affiliates', jp: 'アフィリエイト', icon: Users }` and `{ id: 'affiliateDashboard', label: 'Dashboard', jp: 'ダッシュボード', icon: BarChart3 }`. They render at the bottom of both the desktop sidebar and the mobile horizontal tab strip.
+
+  **Change 5 — AffiliateForm component** (placed after SettingsTab, before the main AdminPanel export)
+  FormShell wrapper with title `Edit Affiliate`/`New Affiliate` + jp `アフィリエイト編集`/`新アフィリエイト`. Layout: 2-col grid on md+, single col on mobile. Fields:
+  - Code (TextInput, auto-uppercases via `v.toUpperCase()` on change, placeholder `NARUTO10`).
+  - Creator Name (TextInput, placeholder `@anime_fan_page`).
+  - Platform (select with Instagram / YouTube / TikTok / Twitter/X / Facebook / Other).
+  - Contact (TextInput, placeholder `WhatsApp number or email for payout`).
+  - Visual separator with pink accent label "Customer Reward · カスタマー特典".
+  - Reward Type (select: DISCOUNT / FREE_GIFT / NONE).
+  - Conditional field: DISCOUNT → "Reward Value" number input (hint `Percentage off (0–100)`); FREE_GIFT → "Gift Name" text input; NONE → muted hint text "No customer discount — they just support the creator".
+  - Visual separator with pink accent label "Creator Commission · クリエイター報酬".
+  - Commission Type (select: PERCENTAGE / FIXED).
+  - Commission Value (number input, hint dynamically switches between `e.g. 10 for 10% per sale` and `e.g. 100 for ₹100 per sale` based on commissionType).
+  - Active (Toggle).
+  Initial form state seeded from `Affiliate | null` — numeric fields converted to string via `String(item.x ?? 0)`.
+  Empty-form factory defaults: platform `Instagram`, rewardType `DISCOUNT`, rewardValue `10`, commissionType `PERCENTAGE`, commissionValue `10`, isActive `true`.
+
+  **Change 6 — AffiliatesTab component** (creator management, full CRUD list view)
+  Follows the NotificationsTab vertical-card-stack pattern (each affiliate is a rich multi-section card). Each card contains:
+  - Header row: code (font-mono-tech, bold, uppercase), platform badge (color-coded: Instagram/YouTube = pink, TikTok = green, others = white border), "Paused" badge if inactive, Active/Paused toggle button (click-to-flip via PUT with `{ isActive: !a.isActive }`, optimistic local update), Edit + Delete icon buttons.
+  - Creator name (truncated) + contact (mono-tech, muted).
+  - 2-column info grid: "Customer Reward · 特典" (computed via `formatRewardLabel` → "10% off" / "Free Gift: Sticker Pack" / "None") and "Creator Commission · 報酬" (computed via `formatCommissionLabel` → "10% per sale" / "₹100 per sale").
+  - 4-column stats grid (only rendered if `a.stats` exists): Orders (white), Confirmed (green #22c55e), Revenue (`formatINR`), Commission (`formatINR`, pink #FF2D55).
+  `handleSave` builds a payload that converts `rewardValue`/`commissionValue` to numbers via `parseFloat || 0`. `handleDelete` checks the API response: if `data.deactivated === true` it shows an info toast with the backend's `data.message` (about preserving payout history); otherwise shows a standard "deleted" toast. ConfirmDialog before delete with a message explaining the auto-deactivate behavior. Loader2 spinner while fetching, EmptyState when no affiliates.
+
+  **Change 7 — AffiliateDashboardTab component** (campaign overview + order management + per-creator breakdown)
+  Three-section layout:
+  1. **Top: 4-card Campaign Overview Stats** (2x2 on mobile, 4x1 on lg):
+     - Total Revenue (`formatINR(totalRevenue)` from confirmed orders, font-display xl white, sub-label with confirmed order count).
+     - Commission Owed (`formatINR(totalCommission)`, pink #FF2D55, sub-label "From confirmed orders").
+     - Pending (`formatINR(pendingCommission)`, amber #f59e0b, sub-label with pending order count).
+     - Total Orders (count, sub-label "Across N creators" where N = affiliates with >0 orders).
+  2. **Middle: Order Management Section**
+     - Section header with "Order Management / 注文管理" title + filter button row (ALL / PENDING / CONFIRMED / CANCELLED). Active filter is solid pink `#FF2D55` with white text; inactive filters are bordered `#2A2A2A` with muted text.
+     - 12-col grid table on md+ (Date / Creator / Total / Commission / Status / Actions), collapses to stacked rows on mobile.
+     - Per-order row: date+time (font-mono-tech), creator name + code (pink), order total (`formatINR`), commission due (`formatINR`), status badge (PENDING = amber, CONFIRMED = green, CANCELLED = pink).
+     - Action buttons (per-status): PENDING → "Confirm" (green border + green tint bg) + "Cancel" (pink); CONFIRMED → "Cancel" (pink); CANCELLED → "Reopen" (muted). All show `...` while updating.
+     - Each order has a note section below the row: shows existing `customerNote` if set, plus an inline text input to add/edit a note (with a "Save Note" button that appears only when there's input — calls `updateOrderStatus` with the same status, just to persist the note).
+     - `updateOrderStatus` calls `PUT /api/admin/affiliate-orders/[id]` with `{ status, customerNote }`, shows toast on success, clears the note input, refetches all data.
+     - EmptyState when no orders match the current filter.
+  3. **Bottom: Per-Creator Breakdown**
+     - Section header "Creator Breakdown / クリエイター別".
+     - List of all affiliates (not just active) with: creator name + code (pink) + platform + "Paused" badge if inactive, then a 4-col stat grid: Confirmed (green), Revenue (`formatINR`), Commission Owed (pink), Pending Commission (amber).
+     - Right side: "Confirm all pending (N)" green button — disabled when N=0 or while bulk-confirming. `handleBulkConfirm` iterates through all PENDING orders for that affiliate and PUTs each one to CONFIRMED sequentially, then shows a summary toast (`N orders confirmed` or `X confirmed, Y failed`).
+  - Uses `Promise.all` to fetch both `/api/admin/affiliate-orders` and `/api/admin/affiliates` in parallel on mount via `useCallback` + `useEffect`.
+  - Loader2 spinner while loading initial data.
+
+  **Change 8 — Main dashboard render**
+  Added 2 conditional renders after the Settings render:
+  - `{activeTab === 'affiliates' && <AffiliatesTab />}`
+  - `{activeTab === 'affiliateDashboard' && <AffiliateDashboardTab />}`
+  The 2 new tabs automatically appear in the sidebar because the sidebar renders from the TABS array.
+
+- Helper functions added (module-scope, near the components that use them):
+  - `formatRewardLabel(a: Affiliate): string` → `${value}% off` / `Free Gift: ${name}` / `None`.
+  - `formatCommissionLabel(a: Affiliate): string` → `${value}% per sale` / `${formatINR(value)} per sale`.
+  - `platformBadgeStyle(platform: string): string` → pink for IG/YT, green for TikTok, white border default.
+  - `orderStatusStyle(status: string): string` → green for CONFIRMED, pink for CANCELLED, amber for PENDING.
+
+- Ran `cd /home/z/my-project && bun run lint` — 0 errors, 0 warnings on the modified file.
+- Ran `npx tsc --noEmit` — no errors in `src/components/admin/admin-panel.tsx` (only pre-existing unrelated errors in `examples/`, `skills/` folders, which are out of scope).
+- Triggered `GET /` on the dev server to force a recompile — `200 OK` with `✓ Compiled in 52ms` (render: 115ms) and no error trace in `dev.log`.
+
+Stage Summary:
+- The admin panel now exposes 10 tabs total: the original 4 (Products, Universes, Drops, Lifestyle) + 3 from Task 7-b (Coupons, Store, Alerts) + Settings from Task 7-c + 2 new ones (Affiliates, Dashboard) wired to the existing `/api/admin/affiliates` and `/api/admin/affiliate-orders` routes.
+- The **Affiliates** tab is a full CRUD list view for creator management — each card surfaces the code, platform, contact, reward structure, commission structure, and live order stats; admins can create, edit, toggle active/paused, and delete (with the backend's auto-deactivate-instead-of-delete behavior surfaced in the toast message).
+- The **Dashboard** tab is a campaign command center — top-line revenue/commission/pending stats, a filterable order management table with per-order status transitions (Confirm/Cancel/Reopen) + inline note-taking, and a per-creator breakdown with one-click "Confirm all pending" bulk action.
+- All new code follows the exact same patterns as the existing 8 tabs: dark premium palette (`#050505` bg / `#111111` surface / `#2A2A2A` border / `#F5F5F5` text / `#FF2D55` accent / `#22c55e` green / `#f59e0b` amber for pending), `font-mono-tech` technical labels, `font-jp` Japanese accents, `useToast` for success/error feedback, `ConfirmDialog` for deletes, `Loader2` spinners for async states, optimistic active-toggle updates, and refresh-after-CRUD via `useCallback` fetch.
+- No existing functionality was broken: the 8 original tabs and the auth flow (login → auth-check → dashboard → logout) are untouched. All edits were surgical additions, not rewrites — the only modification to existing code was extending the `TabId` union and the `TABS` array and the lucide-react import list.

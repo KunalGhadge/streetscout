@@ -13,17 +13,34 @@ export interface AppliedCoupon {
   description: string
 }
 
+// Affiliate code applied to cart — works like a coupon but also tracks commission
+export interface AppliedAffiliate {
+  id: string
+  code: string
+  creatorName: string
+  rewardType: 'DISCOUNT' | 'FREE_GIFT' | 'NONE'
+  rewardValue: number
+  rewardGiftName: string
+  discountAmount: number
+  freeShipping: boolean
+  freeGift: string
+  commissionDue: number
+}
+
 interface CartState {
   items: CartItem[]
   isOpen: boolean
   isFlying: boolean
   flyTarget: { x: number; y: number } | null
   coupon: AppliedCoupon | null
+  affiliate: AppliedAffiliate | null
   addItem: (product: Product, size: string, quantity?: number) => void
   removeItem: (productId: string, size: string) => void
   updateQuantity: (productId: string, size: string, quantity: number) => void
   applyCoupon: (coupon: AppliedCoupon) => void
   removeCoupon: () => void
+  applyAffiliate: (affiliate: AppliedAffiliate) => void
+  removeAffiliate: () => void
   clearCart: () => void
   openCart: () => void
   closeCart: () => void
@@ -34,6 +51,7 @@ interface CartState {
   getDiscount: () => number
   getFinalTotal: () => number
   getFreeShipping: () => boolean
+  getActiveCode: () => AppliedCoupon | AppliedAffiliate | null
 }
 
 export const useCart = create<CartState>()(
@@ -44,6 +62,7 @@ export const useCart = create<CartState>()(
       isFlying: false,
       flyTarget: null,
       coupon: null,
+      affiliate: null,
       addItem: (product, size, quantity = 1) => {
         const items = get().items
         const existing = items.find(
@@ -60,8 +79,9 @@ export const useCart = create<CartState>()(
         } else {
           set({ items: [...items, { product, size, quantity }] })
         }
-        // Coupon becomes stale when cart changes — remove it so user re-validates
+        // Invalidate coupon/affiliate when cart changes
         if (get().coupon) set({ coupon: null })
+        if (get().affiliate) set({ affiliate: null })
       },
       removeItem: (productId, size) => {
         set({
@@ -70,6 +90,7 @@ export const useCart = create<CartState>()(
           ),
         })
         if (get().coupon) set({ coupon: null })
+        if (get().affiliate) set({ affiliate: null })
       },
       updateQuantity: (productId, size, quantity) => {
         if (quantity <= 0) {
@@ -84,10 +105,13 @@ export const useCart = create<CartState>()(
           ),
         })
         if (get().coupon) set({ coupon: null })
+        if (get().affiliate) set({ affiliate: null })
       },
-      applyCoupon: (coupon) => set({ coupon }),
+      applyCoupon: (coupon) => set({ coupon, affiliate: null }), // coupon and affiliate are mutually exclusive
       removeCoupon: () => set({ coupon: null }),
-      clearCart: () => set({ items: [], coupon: null }),
+      applyAffiliate: (affiliate) => set({ affiliate, coupon: null }),
+      removeAffiliate: () => set({ affiliate: null }),
+      clearCart: () => set({ items: [], coupon: null, affiliate: null }),
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
       toggleCart: () => set({ isOpen: !get().isOpen }),
@@ -104,8 +128,10 @@ export const useCart = create<CartState>()(
         ),
       getDiscount: () => {
         const coupon = get().coupon
-        if (!coupon) return 0
-        return coupon.discountAmount || 0
+        const affiliate = get().affiliate
+        if (coupon) return coupon.discountAmount || 0
+        if (affiliate) return affiliate.discountAmount || 0
+        return 0
       },
       getFinalTotal: () => {
         const total = get().getTotalPrice()
@@ -114,7 +140,13 @@ export const useCart = create<CartState>()(
       },
       getFreeShipping: () => {
         const coupon = get().coupon
-        return coupon ? coupon.freeShipping : false
+        const affiliate = get().affiliate
+        if (coupon) return coupon.freeShipping
+        if (affiliate) return affiliate.freeShipping
+        return false
+      },
+      getActiveCode: () => {
+        return get().coupon || get().affiliate
       },
     }),
     {

@@ -19,6 +19,8 @@ import {
   Power,
   Bell,
   Settings,
+  Users,
+  BarChart3,
 } from 'lucide-react'
 import { ImageUpload } from '@/components/admin/image-upload'
 import { useToast } from '@/hooks/use-toast'
@@ -42,6 +44,8 @@ type TabId =
   | 'store'
   | 'notifications'
   | 'settings'
+  | 'affiliates'
+  | 'affiliateDashboard'
 
 interface Coupon {
   id: string
@@ -72,6 +76,48 @@ interface AdminNotification {
   link: string
   isActive: boolean
   createdAt: string
+}
+
+interface Affiliate {
+  id: string
+  code: string
+  creatorName: string
+  platform: string
+  contact: string
+  rewardType: string // DISCOUNT | FREE_GIFT | NONE
+  rewardValue: number
+  rewardGiftName: string
+  commissionType: string // PERCENTAGE | FIXED
+  commissionValue: number
+  isActive: boolean
+  createdAt: string
+  stats?: {
+    totalOrders: number
+    confirmedOrders: number
+    pendingOrders: number
+    cancelledOrders: number
+    totalRevenue: number
+    totalCommission: number
+    pendingCommission: number
+  }
+}
+
+interface AffiliateOrder {
+  id: string
+  affiliateId: string
+  code: string
+  creatorName: string
+  orderTotal: number
+  commissionDue: number
+  status: string // PENDING | CONFIRMED | CANCELLED
+  customerNote: string
+  createdAt: string
+  affiliate?: {
+    id: string
+    code: string
+    creatorName: string
+    platform: string
+  }
 }
 
 // ============================================================================
@@ -1441,6 +1487,8 @@ const TABS: { id: TabId; label: string; jp: string; icon: typeof Package }[] = [
   { id: 'store', label: 'Store', jp: 'ストア', icon: Power },
   { id: 'notifications', label: 'Alerts', jp: '通知', icon: Bell },
   { id: 'settings', label: 'Settings', jp: '設定', icon: Settings },
+  { id: 'affiliates', label: 'Affiliates', jp: 'アフィリエイト', icon: Users },
+  { id: 'affiliateDashboard', label: 'Dashboard', jp: 'ダッシュボード', icon: BarChart3 },
 ]
 
 // ============================================================================
@@ -2972,6 +3020,1008 @@ function SettingsTab() {
 }
 
 // ============================================================================
+// Affiliate Form
+// ============================================================================
+
+interface AffiliateFormData {
+  code: string
+  creatorName: string
+  platform: string
+  contact: string
+  rewardType: string // DISCOUNT | FREE_GIFT | NONE
+  rewardValue: string
+  rewardGiftName: string
+  commissionType: string // PERCENTAGE | FIXED
+  commissionValue: string
+  isActive: boolean
+}
+
+function emptyAffiliateForm(): AffiliateFormData {
+  return {
+    code: '',
+    creatorName: '',
+    platform: 'Instagram',
+    contact: '',
+    rewardType: 'DISCOUNT',
+    rewardValue: '10',
+    rewardGiftName: '',
+    commissionType: 'PERCENTAGE',
+    commissionValue: '10',
+    isActive: true,
+  }
+}
+
+function AffiliateForm({
+  item,
+  onSave,
+  onCancel,
+  saving,
+}: {
+  item: Affiliate | null
+  onSave: (data: AffiliateFormData) => void
+  onCancel: () => void
+  saving: boolean
+}) {
+  const [form, setForm] = useState<AffiliateFormData>(() =>
+    item
+      ? {
+          code: item.code,
+          creatorName: item.creatorName,
+          platform: item.platform,
+          contact: item.contact || '',
+          rewardType: item.rewardType,
+          rewardValue: String(item.rewardValue ?? 0),
+          rewardGiftName: item.rewardGiftName || '',
+          commissionType: item.commissionType,
+          commissionValue: String(item.commissionValue ?? 0),
+          isActive: item.isActive,
+        }
+      : emptyAffiliateForm()
+  )
+
+  const set = <K extends keyof AffiliateFormData>(key: K, value: AffiliateFormData[K]) => {
+    setForm((f) => ({ ...f, [key]: value }))
+  }
+
+  return (
+    <FormShell
+      title={item ? 'Edit Affiliate' : 'New Affiliate'}
+      jp={item ? 'アフィリエイト編集' : '新アフィリエイト'}
+      onClose={onCancel}
+      onSave={() => onSave(form)}
+      saving={saving}
+    >
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field label="Code" hint="Auto-uppercase · what customers type at checkout">
+          <TextInput
+            value={form.code}
+            onChange={(v) => set('code', v.toUpperCase())}
+            placeholder="NARUTO10"
+          />
+        </Field>
+        <Field label="Creator Name" hint="Handle or display name">
+          <TextInput
+            value={form.creatorName}
+            onChange={(v) => set('creatorName', v)}
+            placeholder="@anime_fan_page"
+          />
+        </Field>
+        <Field label="Platform">
+          <select
+            value={form.platform}
+            onChange={(e) => set('platform', e.target.value)}
+            className="w-full border border-[#2A2A2A] bg-[#0a0a0a] px-3 py-2 text-sm text-white/90 transition-colors focus:border-[#FF2D55] focus:outline-none"
+          >
+            <option value="Instagram">Instagram</option>
+            <option value="YouTube">YouTube</option>
+            <option value="TikTok">TikTok</option>
+            <option value="Twitter/X">Twitter/X</option>
+            <option value="Facebook">Facebook</option>
+            <option value="Other">Other</option>
+          </select>
+        </Field>
+        <Field label="Contact" hint="WhatsApp number or email for payout">
+          <TextInput
+            value={form.contact}
+            onChange={(v) => set('contact', v)}
+            placeholder="WhatsApp number or email for payout"
+          />
+        </Field>
+
+        <div className="md:col-span-2 border-t border-[#2A2A2A] pt-4">
+          <p className="mb-1 font-mono-tech text-[10px] uppercase tracking-wider text-[#FF2D55]">
+            Customer Reward · カスタマー特典
+          </p>
+        </div>
+
+        <Field label="Reward Type">
+          <select
+            value={form.rewardType}
+            onChange={(e) => set('rewardType', e.target.value)}
+            className="w-full border border-[#2A2A2A] bg-[#0a0a0a] px-3 py-2 text-sm text-white/90 transition-colors focus:border-[#FF2D55] focus:outline-none"
+          >
+            <option value="DISCOUNT">DISCOUNT</option>
+            <option value="FREE_GIFT">FREE_GIFT</option>
+            <option value="NONE">NONE</option>
+          </select>
+        </Field>
+
+        {form.rewardType === 'DISCOUNT' && (
+          <Field label="Reward Value" hint="Percentage off (0–100)">
+            <TextInput
+              value={form.rewardValue}
+              onChange={(v) => set('rewardValue', v)}
+              placeholder="10"
+              type="number"
+            />
+          </Field>
+        )}
+        {form.rewardType === 'FREE_GIFT' && (
+          <Field label="Gift Name">
+            <TextInput
+              value={form.rewardGiftName}
+              onChange={(v) => set('rewardGiftName', v)}
+              placeholder="Sticker Pack"
+            />
+          </Field>
+        )}
+        {form.rewardType === 'NONE' && (
+          <div className="md:col-span-1 flex items-end">
+            <p className="font-mono-tech text-[10px] uppercase tracking-wider text-white/30">
+              No customer discount — they just support the creator
+            </p>
+          </div>
+        )}
+
+        <div className="md:col-span-2 border-t border-[#2A2A2A] pt-4">
+          <p className="mb-1 font-mono-tech text-[10px] uppercase tracking-wider text-[#FF2D55]">
+            Creator Commission · クリエイター報酬
+          </p>
+        </div>
+
+        <Field label="Commission Type">
+          <select
+            value={form.commissionType}
+            onChange={(e) => set('commissionType', e.target.value)}
+            className="w-full border border-[#2A2A2A] bg-[#0a0a0a] px-3 py-2 text-sm text-white/90 transition-colors focus:border-[#FF2D55] focus:outline-none"
+          >
+            <option value="PERCENTAGE">PERCENTAGE</option>
+            <option value="FIXED">FIXED</option>
+          </select>
+        </Field>
+
+        <Field
+          label="Commission Value"
+          hint={
+            form.commissionType === 'PERCENTAGE'
+              ? 'e.g. 10 for 10% per sale'
+              : 'e.g. 100 for ₹100 per sale'
+          }
+        >
+          <TextInput
+            value={form.commissionValue}
+            onChange={(v) => set('commissionValue', v)}
+            placeholder="10"
+            type="number"
+          />
+        </Field>
+
+        <div className="md:col-span-2">
+          <Toggle
+            checked={form.isActive}
+            onChange={(v) => set('isActive', v)}
+            label="Active"
+          />
+        </div>
+      </div>
+    </FormShell>
+  )
+}
+
+// ============================================================================
+// Affiliates Tab (Creator Management)
+// ============================================================================
+
+function formatRewardLabel(a: Affiliate): string {
+  if (a.rewardType === 'DISCOUNT') return `${a.rewardValue}% off`
+  if (a.rewardType === 'FREE_GIFT') return `Free Gift: ${a.rewardGiftName || '—'}`
+  return 'None'
+}
+
+function formatCommissionLabel(a: Affiliate): string {
+  if (a.commissionType === 'PERCENTAGE') return `${a.commissionValue}% per sale`
+  return `${formatINR(a.commissionValue)} per sale`
+}
+
+function platformBadgeStyle(platform: string): string {
+  switch (platform) {
+    case 'Instagram':
+      return 'bg-[#FF2D55]/15 text-[#FF2D55]'
+    case 'YouTube':
+      return 'bg-[#FF2D55]/15 text-[#FF2D55]'
+    case 'TikTok':
+      return 'bg-[#22c55e]/15 text-[#22c55e]'
+    default:
+      return 'border border-[#2A2A2A] text-white/60'
+  }
+}
+
+function AffiliatesTab() {
+  const { toast } = useToast()
+  const [items, setItems] = useState<Affiliate[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState<Affiliate | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
+
+  const fetchItems = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/affiliates')
+      if (res.ok) setItems(await res.json())
+    } catch {
+      toast({ title: 'Failed to load affiliates', variant: 'destructive' })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    fetchItems()
+  }, [fetchItems])
+
+  const handleSave = async (data: AffiliateFormData) => {
+    setSaving(true)
+    try {
+      const url = editing
+        ? `/api/admin/affiliates/${editing.id}`
+        : '/api/admin/affiliates'
+      const method = editing ? 'PUT' : 'POST'
+      const payload = {
+        code: data.code,
+        creatorName: data.creatorName,
+        platform: data.platform,
+        contact: data.contact,
+        rewardType: data.rewardType,
+        rewardValue: parseFloat(data.rewardValue) || 0,
+        rewardGiftName: data.rewardGiftName,
+        commissionType: data.commissionType,
+        commissionValue: parseFloat(data.commissionValue) || 0,
+        isActive: data.isActive,
+      }
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        toast({ title: 'Save failed', description: result.error, variant: 'destructive' })
+      } else {
+        toast({ title: editing ? 'Affiliate updated' : 'Affiliate created' })
+        setEditing(null)
+        setCreating(false)
+        fetchItems()
+      }
+    } catch {
+      toast({ title: 'Network error', variant: 'destructive' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteId) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/admin/affiliates/${deleteId}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast({ title: 'Delete failed', description: data.error, variant: 'destructive' })
+      } else if (data.deactivated) {
+        toast({
+          title: 'Affiliate deactivated',
+          description: data.message,
+        })
+        setDeleteId(null)
+        fetchItems()
+      } else {
+        toast({ title: 'Affiliate deleted' })
+        setDeleteId(null)
+        fetchItems()
+      }
+    } catch {
+      toast({ title: 'Network error', variant: 'destructive' })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleToggleActive = async (a: Affiliate) => {
+    setTogglingId(a.id)
+    try {
+      const res = await fetch(`/api/admin/affiliates/${a.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !a.isActive }),
+      })
+      if (!res.ok) {
+        toast({ title: 'Update failed', variant: 'destructive' })
+      } else {
+        setItems((prev) =>
+          prev.map((x) =>
+            x.id === a.id ? { ...x, isActive: !a.isActive } : x
+          )
+        )
+      }
+    } catch {
+      toast({ title: 'Network error', variant: 'destructive' })
+    } finally {
+      setTogglingId(null)
+    }
+  }
+
+  if (creating || editing) {
+    return (
+      <AffiliateForm
+        item={editing}
+        onSave={handleSave}
+        onCancel={() => {
+          setCreating(false)
+          setEditing(null)
+        }}
+        saving={saving}
+      />
+    )
+  }
+
+  return (
+    <div>
+      <div className="mb-6 flex items-center justify-between">
+        <SectionTitle
+          title="Affiliates"
+          jp="アフィリエイト"
+          subtitle={`${items.length} creators enrolled`}
+        />
+        <PrimaryButton onClick={() => setCreating(true)}>
+          <Plus className="h-4 w-4" />
+          Add New Affiliate
+        </PrimaryButton>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+        </div>
+      ) : items.length === 0 ? (
+        <EmptyState label="No affiliates yet · Add your first creator" />
+      ) : (
+        <div className="space-y-3">
+          {items.map((a) => (
+            <div
+              key={a.id}
+              className="border border-[#2A2A2A] bg-[#0a0a0a] p-4 transition-colors hover:border-[#2A2A2A]/70"
+            >
+              {/* Header row */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono-tech text-sm uppercase tracking-wider text-white/90">
+                      {a.code}
+                    </span>
+                    <span
+                      className={`inline-block px-1.5 py-0.5 font-mono-tech text-[8px] uppercase tracking-wider ${platformBadgeStyle(
+                        a.platform
+                      )}`}
+                    >
+                      {a.platform}
+                    </span>
+                    {!a.isActive && (
+                      <span className="inline-block px-1.5 py-0.5 font-mono-tech text-[8px] uppercase tracking-wider border border-[#2A2A2A] text-white/40">
+                        Paused
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 truncate text-sm font-medium text-white/90">
+                    {a.creatorName}
+                  </p>
+                  {a.contact && (
+                    <p className="mt-0.5 truncate font-mono-tech text-[10px] uppercase tracking-wider text-white/30">
+                      {a.contact}
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-shrink-0 items-center gap-1">
+                  <button
+                    onClick={() => handleToggleActive(a)}
+                    disabled={togglingId === a.id}
+                    className={`px-2 py-1 font-mono-tech text-[9px] uppercase tracking-wider transition-colors ${
+                      a.isActive
+                        ? 'bg-[#FF2D55]/20 text-[#FF2D55]'
+                        : 'border border-[#2A2A2A] text-white/40 hover:text-white/70'
+                    }`}
+                  >
+                    {togglingId === a.id ? '...' : a.isActive ? 'Active' : 'Paused'}
+                  </button>
+                  <button
+                    onClick={() => setEditing(a)}
+                    className="flex h-8 w-8 items-center justify-center border border-[#2A2A2A] text-white/50 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55]"
+                    aria-label={`Edit ${a.code}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteId(a.id)}
+                    className="flex h-8 w-8 items-center justify-center border border-[#2A2A2A] text-white/50 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55]"
+                    aria-label={`Delete ${a.code}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Reward + commission info */}
+              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="border border-[#2A2A2A] bg-[#111111] px-3 py-2">
+                  <p className="font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                    Customer Reward · 特典
+                  </p>
+                  <p className="mt-1 text-sm text-white/80">{formatRewardLabel(a)}</p>
+                </div>
+                <div className="border border-[#2A2A2A] bg-[#111111] px-3 py-2">
+                  <p className="font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                    Creator Commission · 報酬
+                  </p>
+                  <p className="mt-1 text-sm text-white/80">
+                    {formatCommissionLabel(a)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Stats */}
+              {a.stats && (
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="px-2 py-1.5">
+                    <p className="font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                      Orders
+                    </p>
+                    <p className="mt-0.5 font-mono-tech text-sm text-white/90">
+                      {a.stats.totalOrders}
+                    </p>
+                  </div>
+                  <div className="px-2 py-1.5">
+                    <p className="font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                      Confirmed
+                    </p>
+                    <p className="mt-0.5 font-mono-tech text-sm text-[#22c55e]">
+                      {a.stats.confirmedOrders}
+                    </p>
+                  </div>
+                  <div className="px-2 py-1.5">
+                    <p className="font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                      Revenue
+                    </p>
+                    <p className="mt-0.5 font-mono-tech text-sm text-white/90">
+                      {formatINR(a.stats.totalRevenue)}
+                    </p>
+                  </div>
+                  <div className="px-2 py-1.5">
+                    <p className="font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                      Commission
+                    </p>
+                    <p className="mt-0.5 font-mono-tech text-sm text-[#FF2D55]">
+                      {formatINR(a.stats.totalCommission)}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!deleteId}
+        title="Delete Affiliate"
+        message="This will permanently delete the affiliate. If they have confirmed orders, they will be deactivated instead to preserve payout history."
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteId(null)}
+        loading={deleting}
+      />
+    </div>
+  )
+}
+
+// ============================================================================
+// Affiliate Dashboard Tab (Campaign Overview + Order Management)
+// ============================================================================
+
+function orderStatusStyle(status: string): string {
+  switch (status) {
+    case 'CONFIRMED':
+      return 'bg-[#22c55e]/15 text-[#22c55e]'
+    case 'CANCELLED':
+      return 'bg-[#FF2D55]/15 text-[#FF2D55]'
+    default:
+      return 'bg-[#f59e0b]/15 text-[#f59e0b]'
+  }
+}
+
+function AffiliateDashboardTab() {
+  const { toast } = useToast()
+  const [orders, setOrders] = useState<AffiliateOrder[]>([])
+  const [affiliates, setAffiliates] = useState<Affiliate[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'CONFIRMED' | 'CANCELLED'>('ALL')
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [bulkAffiliateId, setBulkAffiliateId] = useState<string | null>(null)
+  const [orderNote, setOrderNote] = useState<Record<string, string>>({})
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [ordersRes, affRes] = await Promise.all([
+        fetch('/api/admin/affiliate-orders'),
+        fetch('/api/admin/affiliates'),
+      ])
+      if (ordersRes.ok) setOrders(await ordersRes.json())
+      if (affRes.ok) setAffiliates(await affRes.json())
+    } catch {
+      toast({ title: 'Failed to load dashboard data', variant: 'destructive' })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    fetchAll()
+  }, [fetchAll])
+
+  const updateOrderStatus = async (
+    orderId: string,
+    status: 'PENDING' | 'CONFIRMED' | 'CANCELLED'
+  ) => {
+    setUpdatingId(orderId)
+    try {
+      const note = orderNote[orderId] || ''
+      const res = await fetch(`/api/admin/affiliate-orders/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, customerNote: note }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        toast({
+          title: 'Update failed',
+          description: data.error,
+          variant: 'destructive',
+        })
+      } else {
+        toast({ title: `Order ${status.toLowerCase()}` })
+        setOrderNote((prev) => {
+          const next = { ...prev }
+          delete next[orderId]
+          return next
+        })
+        fetchAll()
+      }
+    } catch {
+      toast({ title: 'Network error', variant: 'destructive' })
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
+  const handleBulkConfirm = async (affiliateId: string) => {
+    setBulkAffiliateId(affiliateId)
+    const pending = orders.filter(
+      (o) => o.affiliateId === affiliateId && o.status === 'PENDING'
+    )
+    if (pending.length === 0) {
+      toast({ title: 'No pending orders for this creator' })
+      setBulkAffiliateId(null)
+      return
+    }
+    let okCount = 0
+    let failCount = 0
+    for (const o of pending) {
+      try {
+        const res = await fetch(`/api/admin/affiliate-orders/${o.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'CONFIRMED' }),
+        })
+        if (res.ok) okCount++
+        else failCount++
+      } catch {
+        failCount++
+      }
+    }
+    if (failCount === 0) {
+      toast({
+        title: `${okCount} order${okCount === 1 ? '' : 's'} confirmed`,
+      })
+    } else {
+      toast({
+        title: `${okCount} confirmed, ${failCount} failed`,
+        variant: 'destructive',
+      })
+    }
+    setBulkAffiliateId(null)
+    fetchAll()
+  }
+
+  // Compute overview stats from orders
+  const confirmedOrders = orders.filter((o) => o.status === 'CONFIRMED')
+  const pendingOrdersArr = orders.filter((o) => o.status === 'PENDING')
+  const totalRevenue = confirmedOrders.reduce((sum, o) => sum + o.orderTotal, 0)
+  const totalCommission = confirmedOrders.reduce(
+    (sum, o) => sum + o.commissionDue,
+    0
+  )
+  const pendingCommission = pendingOrdersArr.reduce(
+    (sum, o) => sum + o.commissionDue,
+    0
+  )
+
+  const filteredOrders =
+    filter === 'ALL' ? orders : orders.filter((o) => o.status === filter)
+
+  const activeCreators = affiliates.filter(
+    (a) => (a.stats?.totalOrders ?? 0) > 0
+  ).length
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <SectionTitle
+        title="Affiliate Dashboard"
+        jp="ダッシュボード"
+        subtitle="Campaign overview · order management · creator breakdown"
+      />
+
+      {/* Top: Campaign Overview Stats */}
+      <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="border border-[#2A2A2A] bg-[#0a0a0a] p-4">
+          <p className="font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+            Total Revenue · 総売上
+          </p>
+          <p className="mt-1 font-display text-xl text-white/90">
+            {formatINR(totalRevenue)}
+          </p>
+          <p className="mt-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+            {confirmedOrders.length} confirmed orders
+          </p>
+        </div>
+        <div className="border border-[#2A2A2A] bg-[#0a0a0a] p-4">
+          <p className="font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+            Commission Owed · 報酬総額
+          </p>
+          <p className="mt-1 font-display text-xl text-[#FF2D55]">
+            {formatINR(totalCommission)}
+          </p>
+          <p className="mt-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+            From confirmed orders
+          </p>
+        </div>
+        <div className="border border-[#2A2A2A] bg-[#0a0a0a] p-4">
+          <p className="font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+            Pending · 保留中
+          </p>
+          <p className="mt-1 font-display text-xl text-[#f59e0b]">
+            {formatINR(pendingCommission)}
+          </p>
+          <p className="mt-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+            {pendingOrdersArr.length} pending orders
+          </p>
+        </div>
+        <div className="border border-[#2A2A2A] bg-[#0a0a0a] p-4">
+          <p className="font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+            Total Orders · 注文総数
+          </p>
+          <p className="mt-1 font-display text-xl text-white/90">{orders.length}</p>
+          <p className="mt-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+            Across {activeCreators} creators
+          </p>
+        </div>
+      </div>
+
+      {/* Middle: Order Management */}
+      <div className="mb-8">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-[#2A2A2A] pb-3">
+          <div className="flex items-baseline gap-3">
+            <h3 className="font-display text-lg uppercase text-white">
+              Order Management
+            </h3>
+            <span className="font-jp text-xs tracking-wider text-white/30">
+              注文管理
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {(
+              ['ALL', 'PENDING', 'CONFIRMED', 'CANCELLED'] as const
+            ).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-2.5 py-1 font-mono-tech text-[9px] uppercase tracking-wider transition-colors ${
+                  filter === f
+                    ? 'bg-[#FF2D55] text-white'
+                    : 'border border-[#2A2A2A] text-white/50 hover:text-white/80'
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {filteredOrders.length === 0 ? (
+          <EmptyState
+            label={`No ${
+              filter === 'ALL' ? '' : filter.toLowerCase() + ' '
+            }orders yet`}
+          />
+        ) : (
+          <div className="space-y-2">
+            {/* Header row */}
+            <div className="hidden grid-cols-12 gap-3 border-b border-[#2A2A2A] px-3 pb-2 md:grid">
+              <span className="col-span-2 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                Date
+              </span>
+              <span className="col-span-3 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                Creator
+              </span>
+              <span className="col-span-2 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                Total
+              </span>
+              <span className="col-span-2 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                Commission
+              </span>
+              <span className="col-span-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                Status
+              </span>
+              <span className="col-span-2 text-right font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                Actions
+              </span>
+            </div>
+
+            {filteredOrders.map((o) => (
+              <div
+                key={o.id}
+                className="border border-[#2A2A2A] bg-[#0a0a0a] px-3 py-3 transition-colors hover:border-[#2A2A2A]/70"
+              >
+                <div className="grid grid-cols-12 items-center gap-3">
+                  <div className="col-span-12 md:col-span-2">
+                    <p className="font-mono-tech text-[10px] uppercase tracking-wider text-white/60">
+                      {new Date(o.createdAt).toLocaleDateString()}
+                    </p>
+                    <p className="font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                      {new Date(o.createdAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                  </div>
+                  <div className="col-span-6 md:col-span-3">
+                    <p className="truncate text-sm text-white/90">
+                      {o.creatorName}
+                    </p>
+                    <p className="font-mono-tech text-[9px] uppercase tracking-wider text-[#FF2D55]">
+                      {o.code}
+                    </p>
+                  </div>
+                  <div className="col-span-3 md:col-span-2">
+                    <span className="text-sm font-medium text-white/90">
+                      {formatINR(o.orderTotal)}
+                    </span>
+                  </div>
+                  <div className="col-span-3 md:col-span-2">
+                    <span className="text-sm text-white/70">
+                      {formatINR(o.commissionDue)}
+                    </span>
+                  </div>
+                  <div className="col-span-6 md:col-span-1">
+                    <span
+                      className={`inline-block px-1.5 py-0.5 font-mono-tech text-[8px] uppercase tracking-wider ${orderStatusStyle(
+                        o.status
+                      )}`}
+                    >
+                      {o.status}
+                    </span>
+                  </div>
+                  <div className="col-span-12 flex items-center justify-end gap-1 md:col-span-2">
+                    {o.status === 'PENDING' && (
+                      <>
+                        <button
+                          onClick={() => updateOrderStatus(o.id, 'CONFIRMED')}
+                          disabled={updatingId === o.id}
+                          className="border border-[#22c55e]/40 bg-[#22c55e]/10 px-2 py-1 font-mono-tech text-[9px] uppercase tracking-wider text-[#22c55e] transition-colors hover:bg-[#22c55e]/20 disabled:opacity-50"
+                        >
+                          {updatingId === o.id ? '...' : 'Confirm'}
+                        </button>
+                        <button
+                          onClick={() => updateOrderStatus(o.id, 'CANCELLED')}
+                          disabled={updatingId === o.id}
+                          className="border border-[#FF2D55]/40 bg-[#FF2D55]/10 px-2 py-1 font-mono-tech text-[9px] uppercase tracking-wider text-[#FF2D55] transition-colors hover:bg-[#FF2D55]/20 disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    )}
+                    {o.status === 'CONFIRMED' && (
+                      <button
+                        onClick={() => updateOrderStatus(o.id, 'CANCELLED')}
+                        disabled={updatingId === o.id}
+                        className="border border-[#FF2D55]/40 bg-[#FF2D55]/10 px-2 py-1 font-mono-tech text-[9px] uppercase tracking-wider text-[#FF2D55] transition-colors hover:bg-[#FF2D55]/20 disabled:opacity-50"
+                      >
+                        {updatingId === o.id ? '...' : 'Cancel'}
+                      </button>
+                    )}
+                    {o.status === 'CANCELLED' && (
+                      <button
+                        onClick={() => updateOrderStatus(o.id, 'PENDING')}
+                        disabled={updatingId === o.id}
+                        className="border border-[#2A2A2A] px-2 py-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/60 transition-colors hover:border-white/30 hover:text-white/80 disabled:opacity-50"
+                      >
+                        {updatingId === o.id ? '...' : 'Reopen'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {/* Note + note editor */}
+                <div className="mt-2 border-t border-[#2A2A2A] pt-2">
+                  {o.customerNote && (
+                    <p className="mb-1.5 font-mono-tech text-[9px] uppercase tracking-wider text-white/40">
+                      Note: {o.customerNote}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={orderNote[o.id] || ''}
+                      onChange={(e) =>
+                        setOrderNote((prev) => ({
+                          ...prev,
+                          [o.id]: e.target.value,
+                        }))
+                      }
+                      placeholder="Add note (e.g. out of stock, customer cancelled)"
+                      className="flex-1 border border-[#2A2A2A] bg-[#050505] px-2 py-1 text-xs text-white/70 placeholder-white/25 focus:border-[#FF2D55] focus:outline-none"
+                    />
+                    {orderNote[o.id] && (
+                      <button
+                        onClick={() =>
+                          updateOrderStatus(
+                            o.id,
+                            o.status as 'PENDING' | 'CONFIRMED' | 'CANCELLED'
+                          )
+                        }
+                        disabled={updatingId === o.id}
+                        className="border border-[#2A2A2A] px-2 py-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/50 transition-colors hover:text-white/80 disabled:opacity-50"
+                      >
+                        Save Note
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Bottom: Per-Creator Breakdown */}
+      <div>
+        <div className="mb-4 flex items-baseline gap-3 border-b border-[#2A2A2A] pb-3">
+          <h3 className="font-display text-lg uppercase text-white">
+            Creator Breakdown
+          </h3>
+          <span className="font-jp text-xs tracking-wider text-white/30">
+            クリエイター別
+          </span>
+        </div>
+
+        {affiliates.length === 0 ? (
+          <EmptyState label="No affiliates yet" />
+        ) : (
+          <div className="space-y-2">
+            {affiliates.map((a) => {
+              const stats = a.stats
+              const pendingCount = stats?.pendingOrders ?? 0
+              return (
+                <div
+                  key={a.id}
+                  className="border border-[#2A2A2A] bg-[#0a0a0a] px-3 py-3"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate text-sm font-medium text-white/90">
+                          {a.creatorName}
+                        </span>
+                        <span className="font-mono-tech text-[10px] uppercase tracking-wider text-[#FF2D55]">
+                          {a.code}
+                        </span>
+                        <span className="font-mono-tech text-[9px] uppercase tracking-wider text-white/40">
+                          {a.platform}
+                        </span>
+                        {!a.isActive && (
+                          <span className="inline-block px-1.5 py-0.5 font-mono-tech text-[8px] uppercase tracking-wider border border-[#2A2A2A] text-white/40">
+                            Paused
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <div>
+                          <p className="font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                            Confirmed
+                          </p>
+                          <p className="font-mono-tech text-sm text-[#22c55e]">
+                            {stats?.confirmedOrders ?? 0}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                            Revenue
+                          </p>
+                          <p className="font-mono-tech text-sm text-white/90">
+                            {formatINR(stats?.totalRevenue ?? 0)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                            Commission Owed
+                          </p>
+                          <p className="font-mono-tech text-sm text-[#FF2D55]">
+                            {formatINR(stats?.totalCommission ?? 0)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                            Pending Comm.
+                          </p>
+                          <p className="font-mono-tech text-sm text-[#f59e0b]">
+                            {formatINR(stats?.pendingCommission ?? 0)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0">
+                      <button
+                        onClick={() => handleBulkConfirm(a.id)}
+                        disabled={pendingCount === 0 || bulkAffiliateId === a.id}
+                        className="border border-[#22c55e]/40 bg-[#22c55e]/10 px-3 py-1.5 font-mono-tech text-[9px] uppercase tracking-wider text-[#22c55e] transition-colors hover:bg-[#22c55e]/20 disabled:cursor-not-allowed disabled:border-[#2A2A2A] disabled:bg-transparent disabled:text-white/30"
+                      >
+                        {bulkAffiliateId === a.id
+                          ? '...'
+                          : `Confirm all pending (${pendingCount})`}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
 // Main Admin Panel
 // ============================================================================
 
@@ -3113,6 +4163,8 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
             {activeTab === 'store' && <StoreStatusTab />}
             {activeTab === 'notifications' && <NotificationsTab />}
             {activeTab === 'settings' && <SettingsTab />}
+            {activeTab === 'affiliates' && <AffiliatesTab />}
+            {activeTab === 'affiliateDashboard' && <AffiliateDashboardTab />}
           </div>
         </main>
       </div>
