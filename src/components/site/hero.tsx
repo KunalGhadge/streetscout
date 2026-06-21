@@ -16,41 +16,59 @@ export function Hero({ onShopClick, onExploreClick }: HeroProps) {
   const mobileVideoRef = useRef<HTMLVideoElement>(null)
 
   // Start video playback — minimal handlers to avoid stutter
-  // (Previous aggressive heartbeat caused play-pause stutter on mobile)
   useEffect(() => {
-    const isMobile = window.innerWidth < 768
-    const video = isMobile ? mobileVideoRef.current : desktopVideoRef.current
-    if (!video) return
+    // Helper to get the currently visible video (checks screen size at call time)
+    const getActiveVideo = () => {
+      const isMobile = window.innerWidth < 768
+      return isMobile ? mobileVideoRef.current : desktopVideoRef.current
+    }
 
-    // Start playback once
-    const startPlay = () => {
-      if (video.paused) {
-        video.play().catch(() => {})
+    // Start playback on a specific video
+    const playVideo = (video: HTMLVideoElement | null) => {
+      if (!video) return
+      if (video.paused && !video.ended) {
+        video.play().catch(() => {
+          // Retry after 200ms (Chrome sometimes needs a moment after tab switch)
+          setTimeout(() => {
+            if (video.paused && !video.ended) {
+              video.play().catch(() => {})
+            }
+          }, 200)
+        })
       }
     }
 
     // Initial play attempt
-    startPlay()
+    playVideo(getActiveVideo())
 
     // If autoplay blocked, resume on first user interaction (Chrome requirement)
     const onInteraction = () => {
-      startPlay()
+      playVideo(getActiveVideo())
     }
     document.addEventListener('touchstart', onInteraction, { once: true, passive: true })
     document.addEventListener('click', onInteraction, { once: true, passive: true })
 
-    // Resume when returning to tab (Chrome pauses background tabs)
+    // Resume when returning to tab — Chrome pauses videos in background tabs
+    // and doesn't auto-resume them when the user comes back
     const onVisibility = () => {
       if (!document.hidden) {
-        startPlay()
+        // Small delay lets Chrome settle after tab switch before we call play()
+        setTimeout(() => playVideo(getActiveVideo()), 100)
       }
     }
     document.addEventListener('visibilitychange', onVisibility)
+
+    // Also resume on window focus (covers some edge cases visibilitychange misses)
+    const onFocus = () => {
+      setTimeout(() => playVideo(getActiveVideo()), 100)
+    }
+    window.addEventListener('focus', onFocus)
 
     return () => {
       document.removeEventListener('touchstart', onInteraction)
       document.removeEventListener('click', onInteraction)
       document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('focus', onFocus)
     }
   }, [])
 
