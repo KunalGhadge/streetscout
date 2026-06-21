@@ -1,0 +1,1926 @@
+     1→'use client'
+     2→
+     3→import { useEffect, useState, useCallback } from 'react'
+     4→import {
+     5→  Loader2,
+     6→  Plus,
+     7→  Pencil,
+     8→  Trash2,
+     9→  X,
+    10→  LogOut,
+    11→  Lock,
+    12→  Package,
+    13→  Globe,
+    14→  Layers,
+    15→  Sparkles,
+    16→  ArrowLeft,
+    17→  AlertTriangle,
+    18→} from 'lucide-react'
+    19→import { ImageUpload } from '@/components/admin/image-upload'
+    20→import { useToast } from '@/hooks/use-toast'
+    21→import { formatINR } from '@/lib/data'
+    22→import type { Product, Universe, Drop, Lifestyle } from '@/lib/types'
+    23→
+    24→// ============================================================================
+    25→// Types
+    26→// ============================================================================
+    27→
+    28→interface AdminPanelProps {
+    29→  onClose: () => void
+    30→}
+    31→
+    32→type TabId = 'products' | 'universes' | 'drops' | 'lifestyle'
+    33→
+    34→// ============================================================================
+    35→// Shared primitives
+    36→// ============================================================================
+    37→
+    38→function Field({
+    39→  label,
+    40→  children,
+    41→  hint,
+    42→}: {
+    43→  label: string
+    44→  children: React.ReactNode
+    45→  hint?: string
+    46→}) {
+    47→  return (
+    48→    <div>
+    49→      <label className="mb-1.5 block font-mono-tech text-[10px] uppercase tracking-wider text-white/50">
+    50→        {label}
+    51→      </label>
+    52→      {children}
+    53→      {hint && (
+    54→        <p className="mt-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+    55→          {hint}
+    56→        </p>
+    57→      )}
+    58→    </div>
+    59→  )
+    60→}
+    61→
+    62→function TextInput({
+    63→  value,
+    64→  onChange,
+    65→  placeholder,
+    66→  type = 'text',
+    67→}: {
+    68→  value: string | number
+    69→  onChange: (v: string) => void
+    70→  placeholder?: string
+    71→  type?: string
+    72→}) {
+    73→  return (
+    74→    <input
+    75→      type={type}
+    76→      value={value}
+    77→      onChange={(e) => onChange(e.target.value)}
+    78→      placeholder={placeholder}
+    79→      className="w-full border border-[#2A2A2A] bg-[#0a0a0a] px-3 py-2 text-sm text-white/90 placeholder-white/25 transition-colors focus:border-[#FF2D55] focus:outline-none"
+    80→    />
+    81→  )
+    82→}
+    83→
+    84→function TextArea({
+    85→  value,
+    86→  onChange,
+    87→  placeholder,
+    88→  rows = 3,
+    89→}: {
+    90→  value: string
+    91→  onChange: (v: string) => void
+    92→  placeholder?: string
+    93→  rows?: number
+    94→}) {
+    95→  return (
+    96→    <textarea
+    97→      value={value}
+    98→      onChange={(e) => onChange(e.target.value)}
+    99→      placeholder={placeholder}
+   100→      rows={rows}
+   101→      className="w-full resize-none border border-[#2A2A2A] bg-[#0a0a0a] px-3 py-2 text-sm text-white/90 placeholder-white/25 transition-colors focus:border-[#FF2D55] focus:outline-none"
+   102→    />
+   103→  )
+   104→}
+   105→
+   106→function Toggle({
+   107→  checked,
+   108→  onChange,
+   109→  label,
+   110→}: {
+   111→  checked: boolean
+   112→  onChange: (v: boolean) => void
+   113→  label: string
+   114→}) {
+   115→  return (
+   116→    <button
+   117→      type="button"
+   118→      onClick={() => onChange(!checked)}
+   119→      className="flex items-center justify-between border border-[#2A2A2A] bg-[#0a0a0a] px-3 py-2 transition-colors hover:border-[#FF2D55]/50"
+   120→    >
+   121→      <span className="font-mono-tech text-[10px] uppercase tracking-wider text-white/60">
+   122→        {label}
+   123→      </span>
+   124→      <span
+   125→        className={`relative h-4 w-7 rounded-full transition-colors ${
+   126→          checked ? 'bg-[#FF2D55]' : 'bg-[#2A2A2A]'
+   127→        }`}
+   128→      >
+   129→        <span
+   130→          className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${
+   131→            checked ? 'left-3.5' : 'left-0.5'
+   132→          }`}
+   133→        />
+   134→      </span>
+   135→    </button>
+   136→  )
+   137→}
+   138→
+   139→function PrimaryButton({
+   140→  children,
+   141→  onClick,
+   142→  type = 'button',
+   143→  loading = false,
+   144→  disabled = false,
+   145→}: {
+   146→  children: React.ReactNode
+   147→  onClick?: () => void
+   148→  type?: 'button' | 'submit'
+   149→  loading?: boolean
+   150→  disabled?: boolean
+   151→}) {
+   152→  return (
+   153→    <button
+   154→      type={type}
+   155→      onClick={onClick}
+   156→      disabled={disabled || loading}
+   157→      className="flex items-center justify-center gap-2 bg-[#FF2D55] px-4 py-2 text-sm font-medium text-white transition-all hover:bg-[#FF2D55]/90 disabled:cursor-not-allowed disabled:opacity-50"
+   158→    >
+   159→      {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+   160→      {children}
+   161→    </button>
+   162→  )
+   163→}
+   164→
+   165→function SecondaryButton({
+   166→  children,
+   167→  onClick,
+   168→  type = 'button',
+   169→}: {
+   170→  children: React.ReactNode
+   171→  onClick?: () => void
+   172→  type?: 'button' | 'submit'
+   173→}) {
+   174→  return (
+   175→    <button
+   176→      type={type}
+   177→      onClick={onClick}
+   178→      className="flex items-center justify-center gap-2 border border-[#2A2A2A] bg-transparent px-4 py-2 text-sm text-white/80 transition-all hover:border-white/30 hover:text-white"
+   179→    >
+   180→      {children}
+   181→    </button>
+   182→  )
+   183→}
+   184→
+   185→function SectionTitle({
+   186→  title,
+   187→  jp,
+   188→  subtitle,
+   189→}: {
+   190→  title: string
+   191→  jp?: string
+   192→  subtitle?: string
+   193→}) {
+   194→  return (
+   195→    <div className="mb-6 border-b border-[#2A2A2A] pb-4">
+   196→      <div className="flex items-baseline gap-3">
+   197→        <h2 className="font-display text-2xl uppercase tracking-tight text-white">
+   198→          {title}
+   199→        </h2>
+   200→        {jp && (
+   201→          <span className="font-jp text-sm tracking-wider text-white/30">{jp}</span>
+   202→        )}
+   203→      </div>
+   204→      {subtitle && (
+   205→        <p className="mt-1 font-mono-tech text-[10px] uppercase tracking-wider text-white/40">
+   206→          {subtitle}
+   207→        </p>
+   208→      )}
+   209→    </div>
+   210→  )
+   211→}
+   212→
+   213→function EmptyState({ label }: { label: string }) {
+   214→  return (
+   215→    <div className="flex flex-col items-center justify-center border border-dashed border-[#2A2A2A] py-16">
+   216→      <p className="font-mono-tech text-[10px] uppercase tracking-wider text-white/30">
+   217→        {label}
+   218→      </p>
+   219→    </div>
+   220→  )
+   221→}
+   222→
+   223→// ============================================================================
+   224→// Confirm Dialog
+   225→// ============================================================================
+   226→
+   227→function ConfirmDialog({
+   228→  open,
+   229→  title,
+   230→  message,
+   231→  onConfirm,
+   232→  onCancel,
+   233→  loading,
+   234→}: {
+   235→  open: boolean
+   236→  title: string
+   237→  message: string
+   238→  onConfirm: () => void
+   239→  onCancel: () => void
+   240→  loading: boolean
+   241→}) {
+   242→  if (!open) return null
+   243→  return (
+   244→    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/80 p-4">
+   245→      <div className="w-full max-w-md border border-[#2A2A2A] bg-[#111111] p-6">
+   246→        <div className="mb-4 flex items-center gap-3">
+   247→          <AlertTriangle className="h-5 w-5 text-[#FF2D55]" />
+   248→          <h3 className="font-display text-lg uppercase text-white">{title}</h3>
+   249→        </div>
+   250→        <p className="mb-6 text-sm text-white/60">{message}</p>
+   251→        <div className="flex justify-end gap-3">
+   252→          <SecondaryButton onClick={onCancel}>Cancel</SecondaryButton>
+   253→          <PrimaryButton onClick={onConfirm} loading={loading}>
+   254→            Delete
+   255→          </PrimaryButton>
+   256→        </div>
+   257→      </div>
+   258→    </div>
+   259→  )
+   260→}
+   261→
+   262→// ============================================================================
+   263→// Form wrapper
+   264→// ============================================================================
+   265→
+   266→function FormShell({
+   267→  title,
+   268→  jp,
+   269→  onClose,
+   270→  onSave,
+   271→  saving,
+   272→  children,
+   273→}: {
+   274→  title: string
+   275→  jp: string
+   276→  onClose: () => void
+   277→  onSave: () => void
+   278→  saving: boolean
+   279→  children: React.ReactNode
+   280→}) {
+   281→  return (
+   282→    <div className="border border-[#2A2A2A] bg-[#0a0a0a]">
+   283→      <div className="flex items-center justify-between border-b border-[#2A2A2A] px-5 py-4">
+   284→        <div className="flex items-baseline gap-3">
+   285→          <h3 className="font-display text-lg uppercase text-white">{title}</h3>
+   286→          <span className="font-jp text-xs tracking-wider text-white/30">{jp}</span>
+   287→        </div>
+   288→        <button
+   289→          onClick={onClose}
+   290→          className="flex h-8 w-8 items-center justify-center text-white/40 transition-colors hover:bg-[#FF2D55]/10 hover:text-[#FF2D55]"
+   291→          aria-label="Close form"
+   292→        >
+   293→          <X className="h-4 w-4" />
+   294→        </button>
+   295→      </div>
+   296→
+   297→      <div className="max-h-[60vh] overflow-y-auto p-5">{children}</div>
+   298→
+   299→      <div className="flex items-center justify-end gap-3 border-t border-[#2A2A2A] px-5 py-4">
+   300→        <SecondaryButton onClick={onClose}>Cancel</SecondaryButton>
+   301→        <PrimaryButton onClick={onSave} loading={saving}>
+   302→          Save
+   303→        </PrimaryButton>
+   304→      </div>
+   305→    </div>
+   306→  )
+   307→}
+   308→
+   309→// ============================================================================
+   310→// Product Form
+   311→// ============================================================================
+   312→
+   313→interface ProductFormData {
+   314→  name: string
+   315→  slug: string
+   316→  collection: string
+   317→  collectionTag: string
+   318→  dropNumber: string
+   319→  universe: string
+   320→  universeJp: string
+   321→  price: string
+   322→  description: string
+   323→  fabric: string
+   324→  fit: string
+   325→  breathability: string
+   326→  durability: string
+   327→  sizes: string
+   328→  imageFront: string
+   329→  imageBack: string
+   330→  isFeatured: boolean
+   331→  inStock: boolean
+   332→}
+   333→
+   334→function emptyProductForm(): ProductFormData {
+   335→  return {
+   336→    name: '',
+   337→    slug: '',
+   338→    collection: '',
+   339→    collectionTag: '',
+   340→    dropNumber: 'DROP-001',
+   341→    universe: '',
+   342→    universeJp: '',
+   343→    price: '0',
+   344→    description: '',
+   345→    fabric: '',
+   346→    fit: '',
+   347→    breathability: '',
+   348→    durability: '',
+   349→    sizes: 'XS,S,M,L,XL,XXL',
+   350→    imageFront: '',
+   351→    imageBack: '',
+   352→    isFeatured: false,
+   353→    inStock: true,
+   354→  }
+   355→}
+   356→
+   357→function ProductForm({
+   358→  product,
+   359→  onSave,
+   360→  onCancel,
+   361→  saving,
+   362→}: {
+   363→  product: Product | null
+   364→  onSave: (data: ProductFormData) => void
+   365→  onCancel: () => void
+   366→  saving: boolean
+   367→}) {
+   368→  const [form, setForm] = useState<ProductFormData>(() =>
+   369→    product
+   370→      ? {
+   371→          name: product.name,
+   372→          slug: product.slug,
+   373→          collection: product.collection,
+   374→          collectionTag: product.collectionTag,
+   375→          dropNumber: product.dropNumber,
+   376→          universe: product.universe,
+   377→          universeJp: product.universeJp,
+   378→          price: String(product.price),
+   379→          description: product.description,
+   380→          fabric: product.fabric,
+   381→          fit: product.fit,
+   382→          breathability: product.breathability,
+   383→          durability: product.durability,
+   384→          sizes: product.sizes || 'XS,S,M,L,XL,XXL',
+   385→          imageFront: product.imageFront,
+   386→          imageBack: product.imageBack,
+   387→          isFeatured: product.isFeatured,
+   388→          inStock: product.inStock,
+   389→        }
+   390→      : emptyProductForm()
+   391→  )
+   392→
+   393→  const set = <K extends keyof ProductFormData>(key: K, value: ProductFormData[K]) => {
+   394→    setForm((f) => ({ ...f, [key]: value }))
+   395→  }
+   396→
+   397→  return (
+   398→    <FormShell
+   399→      title={product ? 'Edit Product' : 'New Product'}
+   400→      jp={product ? '商品編集' : '新商品'}
+   401→      onClose={onCancel}
+   402→      onSave={() => onSave(form)}
+   403→      saving={saving}
+   404→    >
+   405→      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+   406→        <div className="md:col-span-2">
+   407→          <Field label="Name">
+   408→            <TextInput
+   409→              value={form.name}
+   410→              onChange={(v) => set('name', v)}
+   411→              placeholder="Shadow Shinobi Jersey"
+   412→            />
+   413→          </Field>
+   414→        </div>
+   415→
+   416→        <Field label="Slug" hint="Auto-generated from name if empty">
+   417→          <TextInput
+   418→            value={form.slug}
+   419→            onChange={(v) => set('slug', v)}
+   420→            placeholder="shadow-shinobi-jersey"
+   421→          />
+   422→        </Field>
+   423→
+   424→        <Field label="Price (₹)">
+   425→          <TextInput
+   426→            value={form.price}
+   427→            onChange={(v) => set('price', v)}
+   428→            placeholder="2999"
+   429→            type="number"
+   430→          />
+   431→        </Field>
+   432→
+   433→        <Field label="Collection">
+   434→          <TextInput
+   435→            value={form.collection}
+   436→            onChange={(v) => set('collection', v)}
+   437→            placeholder="Shadow Ops"
+   438→          />
+   439→        </Field>
+   440→
+   441→        <Field label="Collection Tag">
+   442→          <TextInput
+   443→            value={form.collectionTag}
+   444→            onChange={(v) => set('collectionTag', v)}
+   445→            placeholder="SS-001"
+   446→          />
+   447→        </Field>
+   448→
+   449→        <Field label="Drop Number">
+   450→          <TextInput
+   451→            value={form.dropNumber}
+   452→            onChange={(v) => set('dropNumber', v)}
+   453→            placeholder="DROP-001"
+   454→          />
+   455→        </Field>
+   456→
+   457→        <Field label="Universe">
+   458→          <TextInput
+   459→            value={form.universe}
+   460→            onChange={(v) => set('universe', v)}
+   461→            placeholder="Naruto"
+   462→          />
+   463→        </Field>
+   464→
+   465→        <Field label="Universe (Japanese)">
+   466→          <TextInput
+   467→            value={form.universeJp}
+   468→            onChange={(v) => set('universeJp', v)}
+   469→            placeholder="ナルト"
+   470→          />
+   471→        </Field>
+   472→
+   473→        <div className="md:col-span-2">
+   474→          <Field label="Description">
+   475→            <TextArea
+   476→              value={form.description}
+   477→              onChange={(v) => set('description', v)}
+   478→              placeholder="Premium anime jersey crafted for the streets..."
+   479→              rows={4}
+   480→            />
+   481→          </Field>
+   482→        </div>
+   483→
+   484→        <Field label="Fabric">
+   485→          <TextInput
+   486→            value={form.fabric}
+   487→            onChange={(v) => set('fabric', v)}
+   488→            placeholder="220gsm French Terry"
+   489→          />
+   490→        </Field>
+   491→
+   492→        <Field label="Fit">
+   493→          <TextInput
+   494→            value={form.fit}
+   495→            onChange={(v) => set('fit', v)}
+   496→            placeholder="Oversized Boxy"
+   497→          />
+   498→        </Field>
+   499→
+   500→        <Field label="Breathability">
+   501→          <TextInput
+   502→            value={form.breathability}
+   503→            onChange={(v) => set('breathability', v)}
+   504→            placeholder="8/10"
+   505→          />
+   506→        </Field>
+   507→
+   508→        <Field label="Durability">
+   509→          <TextInput
+   510→            value={form.durability}
+   511→            onChange={(v) => set('durability', v)}
+   512→            placeholder="9/10"
+   513→          />
+   514→        </Field>
+   515→
+   516→        <div className="md:col-span-2">
+   517→          <Field label="Available Sizes" hint="Comma-separated, e.g. XS,S,M,L,XL,XXL">
+   518→            <TextInput
+   519→              value={form.sizes}
+   520→              onChange={(v) => set('sizes', v)}
+   521→              placeholder="XS,S,M,L,XL,XXL"
+   522→            />
+   523→          </Field>
+   524→        </div>
+   525→
+   526→        <div className="md:col-span-2">
+   527→          <Field label="Front Image">
+   528→            <ImageUpload
+   529→              value={form.imageFront}
+   530→              onChange={(v) => set('imageFront', v)}
+   531→              label="Image Front"
+   532→            />
+   533→          </Field>
+   534→        </div>
+   535→
+   536→        <div className="md:col-span-2">
+   537→          <Field label="Back Image">
+   538→            <ImageUpload
+   539→              value={form.imageBack}
+   540→              onChange={(v) => set('imageBack', v)}
+   541→              label="Image Back"
+   542→            />
+   543→          </Field>
+   544→        </div>
+   545→
+   546→        <Toggle
+   547→          checked={form.isFeatured}
+   548→          onChange={(v) => set('isFeatured', v)}
+   549→          label="Featured"
+   550→        />
+   551→        <Toggle
+   552→          checked={form.inStock}
+   553→          onChange={(v) => set('inStock', v)}
+   554→          label="In Stock"
+   555→        />
+   556→      </div>
+   557→    </FormShell>
+   558→  )
+   559→}
+   560→
+   561→// ============================================================================
+   562→// Universe Form
+   563→// ============================================================================
+   564→
+   565→interface UniverseFormData {
+   566→  name: string
+   567→  japanese: string
+   568→  dropNumber: string
+   569→  image: string
+   570→  order: string
+   571→}
+   572→
+   573→function emptyUniverseForm(): UniverseFormData {
+   574→  return { name: '', japanese: '', dropNumber: 'DROP-001', image: '', order: '0' }
+   575→}
+   576→
+   577→function UniverseForm({
+   578→  item,
+   579→  onSave,
+   580→  onCancel,
+   581→  saving,
+   582→}: {
+   583→  item: Universe | null
+   584→  onSave: (data: UniverseFormData) => void
+   585→  onCancel: () => void
+   586→  saving: boolean
+   587→}) {
+   588→  const [form, setForm] = useState<UniverseFormData>(() =>
+   589→    item
+   590→      ? {
+   591→          name: item.name,
+   592→          japanese: item.japanese,
+   593→          dropNumber: item.dropNumber,
+   594→          image: item.image,
+   595→          order: String(item.order),
+   596→        }
+   597→      : emptyUniverseForm()
+   598→  )
+   599→
+   600→  const set = <K extends keyof UniverseFormData>(key: K, value: UniverseFormData[K]) => {
+   601→    setForm((f) => ({ ...f, [key]: value }))
+   602→  }
+   603→
+   604→  return (
+   605→    <FormShell
+   606→      title={item ? 'Edit Universe' : 'New Universe'}
+   607→      jp={item ? '宇宙編集' : '新宇宙'}
+   608→      onClose={onCancel}
+   609→      onSave={() => onSave(form)}
+   610→      saving={saving}
+   611→    >
+   612→      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+   613→        <Field label="Name">
+   614→          <TextInput
+   615→            value={form.name}
+   616→            onChange={(v) => set('name', v)}
+   617→            placeholder="Naruto"
+   618→          />
+   619→        </Field>
+   620→        <Field label="Japanese">
+   621→          <TextInput
+   622→            value={form.japanese}
+   623→            onChange={(v) => set('japanese', v)}
+   624→            placeholder="ナルト"
+   625→          />
+   626→        </Field>
+   627→        <Field label="Drop Number">
+   628→          <TextInput
+   629→            value={form.dropNumber}
+   630→            onChange={(v) => set('dropNumber', v)}
+   631→            placeholder="DROP-001"
+   632→          />
+   633→        </Field>
+   634→        <Field label="Order">
+   635→          <TextInput
+   636→            value={form.order}
+   637→            onChange={(v) => set('order', v)}
+   638→            placeholder="0"
+   639→            type="number"
+   640→          />
+   641→        </Field>
+   642→        <div className="md:col-span-2">
+   643→          <Field label="Image">
+   644→            <ImageUpload value={form.image} onChange={(v) => set('image', v)} label="Universe Image" />
+   645→          </Field>
+   646→        </div>
+   647→      </div>
+   648→    </FormShell>
+   649→  )
+   650→}
+   651→
+   652→// ============================================================================
+   653→// Drop Form
+   654→// ============================================================================
+   655→
+   656→interface DropFormData {
+   657→  number: string
+   658→  japanese: string
+   659→  title: string
+   660→  description: string
+   661→  status: string
+   662→  image: string
+   663→  order: string
+   664→}
+   665→
+   666→function emptyDropForm(): DropFormData {
+   667→  return {
+   668→    number: 'DROP-001',
+   669→    japanese: '',
+   670→    title: '',
+   671→    description: '',
+   672→    status: 'AVAILABLE',
+   673→    image: '',
+   674→    order: '0',
+   675→  }
+   676→}
+   677→
+   678→function DropForm({
+   679→  item,
+   680→  onSave,
+   681→  onCancel,
+   682→  saving,
+   683→}: {
+   684→  item: Drop | null
+   685→  onSave: (data: DropFormData) => void
+   686→  onCancel: () => void
+   687→  saving: boolean
+   688→}) {
+   689→  const [form, setForm] = useState<DropFormData>(() =>
+   690→    item
+   691→      ? {
+   692→          number: item.number,
+   693→          japanese: item.japanese,
+   694→          title: item.title,
+   695→          description: item.description,
+   696→          status: item.status,
+   697→          image: item.image,
+   698→          order: String(item.order),
+   699→        }
+   700→      : emptyDropForm()
+   701→  )
+   702→
+   703→  const set = <K extends keyof DropFormData>(key: K, value: DropFormData[K]) => {
+   704→    setForm((f) => ({ ...f, [key]: value }))
+   705→  }
+   706→
+   707→  return (
+   708→    <FormShell
+   709→      title={item ? 'Edit Drop' : 'New Drop'}
+   710→      jp={item ? 'ドロップ編集' : '新ドロップ'}
+   711→      onClose={onCancel}
+   712→      onSave={() => onSave(form)}
+   713→      saving={saving}
+   714→    >
+   715→      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+   716→        <Field label="Number">
+   717→          <TextInput
+   718→            value={form.number}
+   719→            onChange={(v) => set('number', v)}
+   720→            placeholder="DROP-001"
+   721→          />
+   722→        </Field>
+   723→        <Field label="Japanese">
+   724→          <TextInput
+   725→            value={form.japanese}
+   726→            onChange={(v) => set('japanese', v)}
+   727→            placeholder="第1弾"
+   728→          />
+   729→        </Field>
+   730→        <div className="md:col-span-2">
+   731→          <Field label="Title">
+   732→            <TextInput
+   733→              value={form.title}
+   734→              onChange={(v) => set('title', v)}
+   735→              placeholder="Genesis Drop"
+   736→            />
+   737→          </Field>
+   738→        </div>
+   739→        <div className="md:col-span-2">
+   740→          <Field label="Description">
+   741→            <TextArea
+   742→              value={form.description}
+   743→              onChange={(v) => set('description', v)}
+   744→              placeholder="The opening chapter of Street Scout..."
+   745→              rows={3}
+   746→            />
+   747→          </Field>
+   748→        </div>
+   749→        <Field label="Status">
+   750→          <select
+   751→            value={form.status}
+   752→            onChange={(e) => set('status', e.target.value)}
+   753→            className="w-full border border-[#2A2A2A] bg-[#0a0a0a] px-3 py-2 text-sm text-white/90 transition-colors focus:border-[#FF2D55] focus:outline-none"
+   754→          >
+   755→            <option value="AVAILABLE">AVAILABLE</option>
+   756→            <option value="LIMITED">LIMITED</option>
+   757→          </select>
+   758→        </Field>
+   759→        <Field label="Order">
+   760→          <TextInput
+   761→            value={form.order}
+   762→            onChange={(v) => set('order', v)}
+   763→            placeholder="0"
+   764→            type="number"
+   765→          />
+   766→        </Field>
+   767→        <div className="md:col-span-2">
+   768→          <Field label="Image">
+   769→            <ImageUpload value={form.image} onChange={(v) => set('image', v)} label="Drop Image" />
+   770→          </Field>
+   771→        </div>
+   772→      </div>
+   773→    </FormShell>
+   774→  )
+   775→}
+   776→
+   777→// ============================================================================
+   778→// Lifestyle Form
+   779→// ============================================================================
+   780→
+   781→interface LifestyleFormData {
+   782→  label: string
+   783→  japanese: string
+   784→  tag: string
+   785→  description: string
+   786→  image: string
+   787→  order: string
+   788→}
+   789→
+   790→function emptyLifestyleForm(): LifestyleFormData {
+   791→  return {
+   792→    label: '',
+   793→    japanese: '',
+   794→    tag: 'SCENE-01',
+   795→    description: '',
+   796→    image: '',
+   797→    order: '0',
+   798→  }
+   799→}
+   800→
+   801→function LifestyleForm({
+   802→  item,
+   803→  onSave,
+   804→  onCancel,
+   805→  saving,
+   806→}: {
+   807→  item: Lifestyle | null
+   808→  onSave: (data: LifestyleFormData) => void
+   809→  onCancel: () => void
+   810→  saving: boolean
+   811→}) {
+   812→  const [form, setForm] = useState<LifestyleFormData>(() =>
+   813→    item
+   814→      ? {
+   815→          label: item.label,
+   816→          japanese: item.japanese,
+   817→          tag: item.tag,
+   818→          description: item.description,
+   819→          image: item.image,
+   820→          order: String(item.order),
+   821→        }
+   822→      : emptyLifestyleForm()
+   823→  )
+   824→
+   825→  const set = <K extends keyof LifestyleFormData>(key: K, value: LifestyleFormData[K]) => {
+   826→    setForm((f) => ({ ...f, [key]: value }))
+   827→  }
+   828→
+   829→  return (
+   830→    <FormShell
+   831→      title={item ? 'Edit Lifestyle' : 'New Lifestyle'}
+   832→      jp={item ? 'ライフスタイル編集' : '新ライフスタイル'}
+   833→      onClose={onCancel}
+   834→      onSave={() => onSave(form)}
+   835→      saving={saving}
+   836→    >
+   837→      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+   838→        <Field label="Label">
+   839→          <TextInput
+   840→            value={form.label}
+   841→            onChange={(v) => set('label', v)}
+   842→            placeholder="Campus Legend"
+   843→          />
+   844→        </Field>
+   845→        <Field label="Japanese">
+   846→          <TextInput
+   847→            value={form.japanese}
+   848→            onChange={(v) => set('japanese', v)}
+   849→            placeholder="キャンパス"
+   850→          />
+   851→        </Field>
+   852→        <Field label="Tag">
+   853→          <TextInput
+   854→            value={form.tag}
+   855→            onChange={(v) => set('tag', v)}
+   856→            placeholder="SCENE-01"
+   857→          />
+   858→        </Field>
+   859→        <Field label="Order">
+   860→          <TextInput
+   861→            value={form.order}
+   862→            onChange={(v) => set('order', v)}
+   863→            placeholder="0"
+   864→            type="number"
+   865→          />
+   866→        </Field>
+   867→        <div className="md:col-span-2">
+   868→          <Field label="Description">
+   869→            <TextArea
+   870→              value={form.description}
+   871→              onChange={(v) => set('description', v)}
+   872→              placeholder="From lecture halls to late-night ramen runs..."
+   873→              rows={3}
+   874→            />
+   875→          </Field>
+   876→        </div>
+   877→        <div className="md:col-span-2">
+   878→          <Field label="Image">
+   879→            <ImageUpload value={form.image} onChange={(v) => set('image', v)} label="Lifestyle Image" />
+   880→          </Field>
+   881→        </div>
+   882→      </div>
+   883→    </FormShell>
+   884→  )
+   885→}
+   886→
+   887→// ============================================================================
+   888→// Thumb helper
+   889→// ============================================================================
+   890→
+   891→function Thumb({ src, alt }: { src: string; alt: string }) {
+   892→  return (
+   893→    <div className="h-12 w-12 flex-shrink-0 overflow-hidden border border-[#2A2A2A] bg-[#0a0a0a]">
+   894→      {src ? (
+   895→        <img src={src} alt={alt} className="h-full w-full object-contain" />
+   896→      ) : (
+   897→        <div className="flex h-full w-full items-center justify-center">
+   898→          <Package className="h-4 w-4 text-white/20" />
+   899→        </div>
+   900→      )}
+   901→    </div>
+   902→  )
+   903→}
+   904→
+   905→// ============================================================================
+   906→// Login Screen
+   907→// ============================================================================
+   908→
+   909→function LoginScreen({ onSuccess, onClose }: { onSuccess: () => void; onClose: () => void }) {
+   910→  const [password, setPassword] = useState('')
+   911→  const [loading, setLoading] = useState(false)
+   912→  const [error, setError] = useState('')
+   913→
+   914→  const handleLogin = async () => {
+   915→    if (!password) {
+   916→      setError('Password required')
+   917→      return
+   918→    }
+   919→    setLoading(true)
+   920→    setError('')
+   921→    try {
+   922→      const res = await fetch('/api/admin/login', {
+   923→        method: 'POST',
+   924→        headers: { 'Content-Type': 'application/json' },
+   925→        body: JSON.stringify({ password }),
+   926→      })
+   927→      const data = await res.json()
+   928→      if (!res.ok) {
+   929→        setError(data.error || 'Login failed')
+   930→      } else {
+   931→        onSuccess()
+   932→      }
+   933→    } catch {
+   934→      setError('Network error. Try again.')
+   935→    } finally {
+   936→      setLoading(false)
+   937→    }
+   938→  }
+   939→
+   940→  return (
+   941→    <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto bg-[#050505]">
+   942→      {/* Grid overlay as child (not on the fixed container — grid-overlay sets position:relative which breaks fixed) */}
+   943→      <div className="pointer-events-none absolute inset-0 grid-overlay opacity-40" />
+   944→      <button
+   945→        onClick={onClose}
+   946→        className="absolute right-5 top-5 z-10 flex h-10 w-10 items-center justify-center border border-[#2A2A2A] text-white/40 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55]"
+   947→        aria-label="Close admin panel"
+   948→      >
+   949→        <X className="h-4 w-4" />
+   950→      </button>
+   951→
+   952→      <div className="relative z-10 w-full max-w-md px-6">
+   953→        {/* Header */}
+   954→        <div className="mb-10 text-center">
+   955→          <div className="mb-3 flex items-center justify-center gap-2">
+   956→            <div className="h-px w-8 bg-[#FF2D55]" />
+   957→            <span className="font-mono-tech text-[10px] uppercase tracking-[0.3em] text-[#FF2D55]">
+   958→              Secure Access
+   959→            </span>
+   960→            <div className="h-px w-8 bg-[#FF2D55]" />
+   961→          </div>
+   962→          <h1 className="font-display text-4xl uppercase leading-none tracking-tight text-white sm:text-5xl">
+   963→            Street Scout
+   964→            <br />
+   965→            Admin
+   966→          </h1>
+   967→          <p className="mt-3 font-jp text-sm tracking-wider text-white/40">管理パネル</p>
+   968→        </div>
+   969→
+   970→        {/* Form card */}
+   971→        <div className="border border-[#2A2A2A] bg-[#111111] p-6">
+   972→          <div className="mb-5">
+   973→            <label className="mb-2 block font-mono-tech text-[10px] uppercase tracking-wider text-white/50">
+   974→              Administrator Password
+   975→            </label>
+   976→            <div className="relative">
+   977→              <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+   978→              <input
+   979→                type="password"
+   980→                value={password}
+   981→                onChange={(e) => {
+   982→                  setPassword(e.target.value)
+   983→                  if (error) setError('')
+   984→                }}
+   985→                onKeyDown={(e) => {
+   986→                  if (e.key === 'Enter') handleLogin()
+   987→                }}
+   988→                placeholder="Enter password"
+   989→                className="w-full border border-[#2A2A2A] bg-[#0a0a0a] py-3 pl-10 pr-3 text-sm text-white/90 placeholder-white/25 transition-colors focus:border-[#FF2D55] focus:outline-none"
+   990→                autoFocus
+   991→              />
+   992→            </div>
+   993→          </div>
+   994→
+   995→          {error && (
+   996→            <div className="mb-4 border border-[#FF2D55]/40 bg-[#FF2D55]/10 px-3 py-2">
+   997→              <p className="font-mono-tech text-[10px] uppercase tracking-wider text-[#FF2D55]">
+   998→                {error}
+   999→              </p>
+  1000→            </div>
+  1001→          )}
+  1002→
+  1003→          <button
+  1004→            onClick={handleLogin}
+  1005→            disabled={loading}
+  1006→            className="flex w-full items-center justify-center gap-2 bg-[#FF2D55] py-3 text-sm font-medium uppercase tracking-wider text-white transition-all hover:bg-[#FF2D55]/90 disabled:cursor-not-allowed disabled:opacity-50"
+  1007→          >
+  1008→            {loading ? (
+  1009→              <>
+  1010→                <Loader2 className="h-4 w-4 animate-spin" />
+  1011→                Authenticating...
+  1012→              </>
+  1013→            ) : (
+  1014→              'Enter Admin'
+  1015→            )}
+  1016→          </button>
+  1017→        </div>
+  1018→
+  1019→        <p className="mt-6 text-center font-mono-tech text-[9px] uppercase tracking-[0.2em] text-white/20">
+  1020→          Authorized Personnel Only · 許可者のみ
+  1021→        </p>
+  1022→      </div>
+  1023→    </div>
+  1024→  )
+  1025→}
+  1026→
+  1027→// ============================================================================
+  1028→// Tab Definitions
+  1029→// ============================================================================
+  1030→
+  1031→const TABS: { id: TabId; label: string; jp: string; icon: typeof Package }[] = [
+  1032→  { id: 'products', label: 'Products', jp: '商品', icon: Package },
+  1033→  { id: 'universes', label: 'Universes', jp: '宇宙', icon: Globe },
+  1034→  { id: 'drops', label: 'Drops', jp: 'ドロップ', icon: Layers },
+  1035→  { id: 'lifestyle', label: 'Lifestyle', jp: '生活', icon: Sparkles },
+  1036→]
+  1037→
+  1038→// ============================================================================
+  1039→// Products Tab
+  1040→// ============================================================================
+  1041→
+  1042→function ProductsTab() {
+  1043→  const { toast } = useToast()
+  1044→  const [items, setItems] = useState<Product[]>([])
+  1045→  const [loading, setLoading] = useState(true)
+  1046→  const [editing, setEditing] = useState<Product | null>(null)
+  1047→  const [creating, setCreating] = useState(false)
+  1048→  const [saving, setSaving] = useState(false)
+  1049→  const [deleteId, setDeleteId] = useState<string | null>(null)
+  1050→  const [deleting, setDeleting] = useState(false)
+  1051→  const [togglingId, setTogglingId] = useState<string | null>(null)
+  1052→
+  1053→  const fetchItems = useCallback(async () => {
+  1054→    setLoading(true)
+  1055→    try {
+  1056→      const res = await fetch('/api/admin/products')
+  1057→      if (res.ok) {
+  1058→        const data = await res.json()
+  1059→        setItems(data)
+  1060→      }
+  1061→    } catch {
+  1062→      toast({ title: 'Failed to load products', variant: 'destructive' })
+  1063→    } finally {
+  1064→      setLoading(false)
+  1065→    }
+  1066→  }, [toast])
+  1067→
+  1068→  useEffect(() => {
+  1069→    fetchItems()
+  1070→  }, [fetchItems])
+  1071→
+  1072→  const handleSave = async (data: ProductFormData) => {
+  1073→    setSaving(true)
+  1074→    try {
+  1075→      const url = editing
+  1076→        ? `/api/admin/products/${editing.id}`
+  1077→        : '/api/admin/products'
+  1078→      const method = editing ? 'PUT' : 'POST'
+  1079→      const res = await fetch(url, {
+  1080→        method,
+  1081→        headers: { 'Content-Type': 'application/json' },
+  1082→        body: JSON.stringify({
+  1083→          ...data,
+  1084→          price: parseFloat(data.price) || 0,
+  1085→        }),
+  1086→      })
+  1087→      const result = await res.json()
+  1088→      if (!res.ok) {
+  1089→        toast({ title: 'Save failed', description: result.error, variant: 'destructive' })
+  1090→      } else {
+  1091→        toast({
+  1092→          title: editing ? 'Product updated' : 'Product created',
+  1093→          description: data.name,
+  1094→        })
+  1095→        setEditing(null)
+  1096→        setCreating(false)
+  1097→        fetchItems()
+  1098→      }
+  1099→    } catch {
+  1100→      toast({ title: 'Network error', variant: 'destructive' })
+  1101→    } finally {
+  1102→      setSaving(false)
+  1103→    }
+  1104→  }
+  1105→
+  1106→  const handleDelete = async () => {
+  1107→    if (!deleteId) return
+  1108→    setDeleting(true)
+  1109→    try {
+  1110→      const res = await fetch(`/api/admin/products/${deleteId}`, { method: 'DELETE' })
+  1111→      if (!res.ok) {
+  1112→        const data = await res.json()
+  1113→        toast({ title: 'Delete failed', description: data.error, variant: 'destructive' })
+  1114→      } else {
+  1115→        toast({ title: 'Product deleted' })
+  1116→        setDeleteId(null)
+  1117→        fetchItems()
+  1118→      }
+  1119→    } catch {
+  1120→      toast({ title: 'Network error', variant: 'destructive' })
+  1121→    } finally {
+  1122→      setDeleting(false)
+  1123→    }
+  1124→  }
+  1125→
+  1126→  const handleToggleFeatured = async (product: Product) => {
+  1127→    setTogglingId(product.id)
+  1128→    try {
+  1129→      const res = await fetch(`/api/admin/products/${product.id}`, {
+  1130→        method: 'PUT',
+  1131→        headers: { 'Content-Type': 'application/json' },
+  1132→        body: JSON.stringify({ ...product, isFeatured: !product.isFeatured }),
+  1133→      })
+  1134→      if (!res.ok) {
+  1135→        toast({ title: 'Update failed', variant: 'destructive' })
+  1136→      } else {
+  1137→        setItems((prev) =>
+  1138→          prev.map((p) =>
+  1139→            p.id === product.id ? { ...p, isFeatured: !p.isFeatured } : p
+  1140→          )
+  1141→        )
+  1142→      }
+  1143→    } catch {
+  1144→      toast({ title: 'Network error', variant: 'destructive' })
+  1145→    } finally {
+  1146→      setTogglingId(null)
+  1147→    }
+  1148→  }
+  1149→
+  1150→  if (creating || editing) {
+  1151→    return (
+  1152→      <ProductForm
+  1153→        product={editing}
+  1154→        onSave={handleSave}
+  1155→        onCancel={() => {
+  1156→          setCreating(false)
+  1157→          setEditing(null)
+  1158→        }}
+  1159→        saving={saving}
+  1160→      />
+  1161→    )
+  1162→  }
+  1163→
+  1164→  return (
+  1165→    <div>
+  1166→      <div className="mb-6 flex items-center justify-between">
+  1167→        <SectionTitle
+  1168→          title="Products"
+  1169→          jp="商品"
+  1170→          subtitle={`${items.length} items in catalog`}
+  1171→        />
+  1172→        <PrimaryButton onClick={() => setCreating(true)}>
+  1173→          <Plus className="h-4 w-4" />
+  1174→          Add New Product
+  1175→        </PrimaryButton>
+  1176→      </div>
+  1177→
+  1178→      {loading ? (
+  1179→        <div className="flex items-center justify-center py-16">
+  1180→          <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+  1181→        </div>
+  1182→      ) : items.length === 0 ? (
+  1183→        <EmptyState label="No products yet · Add your first product" />
+  1184→      ) : (
+  1185→        <div className="space-y-2">
+  1186→          {/* Header row (desktop) */}
+  1187→          <div className="hidden grid-cols-12 gap-3 border-b border-[#2A2A2A] px-3 pb-2 md:grid">
+  1188→            <span className="col-span-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+  1189→              Image
+  1190→            </span>
+  1191→            <span className="col-span-3 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+  1192→              Name
+  1193→            </span>
+  1194→            <span className="col-span-2 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+  1195→              Universe
+  1196→            </span>
+  1197→            <span className="col-span-2 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+  1198→              Price
+  1199→            </span>
+  1200→            <span className="col-span-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+  1201→              Drop
+  1202→            </span>
+  1203→            <span className="col-span-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+  1204→              Featured
+  1205→            </span>
+  1206→            <span className="col-span-2 text-right font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+  1207→              Actions
+  1208→            </span>
+  1209→          </div>
+  1210→
+  1211→          {items.map((p) => (
+  1212→            <div
+  1213→              key={p.id}
+  1214→              className="grid grid-cols-12 items-center gap-3 border border-[#2A2A2A] bg-[#0a0a0a] px-3 py-2.5 transition-colors hover:border-[#2A2A2A]/70"
+  1215→            >
+  1216→              <div className="col-span-2 md:col-span-1">
+  1217→                <Thumb src={p.imageFront} alt={p.name} />
+  1218→              </div>
+  1219→              <div className="col-span-10 md:col-span-3">
+  1220→                <p className="truncate text-sm font-medium text-white/90">{p.name}</p>
+  1221→                <p className="font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+  1222→                  {p.slug}
+  1223→                </p>
+  1224→              </div>
+  1225→              <div className="col-span-6 md:col-span-2">
+  1226→                <p className="truncate text-sm text-white/70">{p.universe}</p>
+  1227→                {p.universeJp && (
+  1228→                  <p className="font-jp text-[10px] text-white/30">{p.universeJp}</p>
+  1229→                )}
+  1230→              </div>
+  1231→              <div className="col-span-3 md:col-span-2">
+  1232→                <span className="text-sm font-medium text-white/90">
+  1233→                  {formatINR(p.price)}
+  1234→                </span>
+  1235→              </div>
+  1236→              <div className="col-span-3 md:col-span-1">
+  1237→                <span className="font-mono-tech text-[10px] uppercase tracking-wider text-white/50">
+  1238→                  {p.dropNumber}
+  1239→                </span>
+  1240→              </div>
+  1241→              <div className="col-span-6 md:col-span-1">
+  1242→                <button
+  1243→                  onClick={() => handleToggleFeatured(p)}
+  1244→                  disabled={togglingId === p.id}
+  1245→                  className={`px-2 py-1 font-mono-tech text-[9px] uppercase tracking-wider transition-colors ${
+  1246→                    p.isFeatured
+  1247→                      ? 'bg-[#FF2D55]/20 text-[#FF2D55]'
+  1248→                      : 'border border-[#2A2A2A] text-white/40 hover:text-white/70'
+  1249→                  }`}
+  1250→                >
+  1251→                  {togglingId === p.id ? '...' : p.isFeatured ? 'On' : 'Off'}
+  1252→                </button>
+  1253→              </div>
+  1254→              <div className="col-span-6 flex items-center justify-end gap-1 md:col-span-2">
+  1255→                <button
+  1256→                  onClick={() => setEditing(p)}
+  1257→                  className="flex h-8 w-8 items-center justify-center border border-[#2A2A2A] text-white/50 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55]"
+  1258→                  aria-label={`Edit ${p.name}`}
+  1259→                >
+  1260→                  <Pencil className="h-3.5 w-3.5" />
+  1261→                </button>
+  1262→                <button
+  1263→                  onClick={() => setDeleteId(p.id)}
+  1264→                  className="flex h-8 w-8 items-center justify-center border border-[#2A2A2A] text-white/50 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55]"
+  1265→                  aria-label={`Delete ${p.name}`}
+  1266→                >
+  1267→                  <Trash2 className="h-3.5 w-3.5" />
+  1268→                </button>
+  1269→              </div>
+  1270→            </div>
+  1271→          ))}
+  1272→        </div>
+  1273→      )}
+  1274→
+  1275→      <ConfirmDialog
+  1276→        open={!!deleteId}
+  1277→        title="Delete Product"
+  1278→        message="This action cannot be undone. The product will be permanently removed from the catalog."
+  1279→        onConfirm={handleDelete}
+  1280→        onCancel={() => setDeleteId(null)}
+  1281→        loading={deleting}
+  1282→      />
+  1283→    </div>
+  1284→  )
+  1285→}
+  1286→
+  1287→// ============================================================================
+  1288→// Universes Tab
+  1289→// ============================================================================
+  1290→
+  1291→function UniversesTab() {
+  1292→  const { toast } = useToast()
+  1293→  const [items, setItems] = useState<Universe[]>([])
+  1294→  const [loading, setLoading] = useState(true)
+  1295→  const [editing, setEditing] = useState<Universe | null>(null)
+  1296→  const [creating, setCreating] = useState(false)
+  1297→  const [saving, setSaving] = useState(false)
+  1298→  const [deleteId, setDeleteId] = useState<string | null>(null)
+  1299→  const [deleting, setDeleting] = useState(false)
+  1300→
+  1301→  const fetchItems = useCallback(async () => {
+  1302→    setLoading(true)
+  1303→    try {
+  1304→      const res = await fetch('/api/admin/universes')
+  1305→      if (res.ok) setItems(await res.json())
+  1306→    } catch {
+  1307→      toast({ title: 'Failed to load universes', variant: 'destructive' })
+  1308→    } finally {
+  1309→      setLoading(false)
+  1310→    }
+  1311→  }, [toast])
+  1312→
+  1313→  useEffect(() => {
+  1314→    fetchItems()
+  1315→  }, [fetchItems])
+  1316→
+  1317→  const handleSave = async (data: UniverseFormData) => {
+  1318→    setSaving(true)
+  1319→    try {
+  1320→      const url = editing
+  1321→        ? `/api/admin/universes/${editing.id}`
+  1322→        : '/api/admin/universes'
+  1323→      const method = editing ? 'PUT' : 'POST'
+  1324→      const res = await fetch(url, {
+  1325→        method,
+  1326→        headers: { 'Content-Type': 'application/json' },
+  1327→        body: JSON.stringify({ ...data, order: parseInt(data.order) || 0 }),
+  1328→      })
+  1329→      const result = await res.json()
+  1330→      if (!res.ok) {
+  1331→        toast({ title: 'Save failed', description: result.error, variant: 'destructive' })
+  1332→      } else {
+  1333→        toast({ title: editing ? 'Universe updated' : 'Universe created' })
+  1334→        setEditing(null)
+  1335→        setCreating(false)
+  1336→        fetchItems()
+  1337→      }
+  1338→    } catch {
+  1339→      toast({ title: 'Network error', variant: 'destructive' })
+  1340→    } finally {
+  1341→      setSaving(false)
+  1342→    }
+  1343→  }
+  1344→
+  1345→  const handleDelete = async () => {
+  1346→    if (!deleteId) return
+  1347→    setDeleting(true)
+  1348→    try {
+  1349→      const res = await fetch(`/api/admin/universes/${deleteId}`, { method: 'DELETE' })
+  1350→      if (!res.ok) {
+  1351→        const data = await res.json()
+  1352→        toast({ title: 'Delete failed', description: data.error, variant: 'destructive' })
+  1353→      } else {
+  1354→        toast({ title: 'Universe deleted' })
+  1355→        setDeleteId(null)
+  1356→        fetchItems()
+  1357→      }
+  1358→    } catch {
+  1359→      toast({ title: 'Network error', variant: 'destructive' })
+  1360→    } finally {
+  1361→      setDeleting(false)
+  1362→    }
+  1363→  }
+  1364→
+  1365→  if (creating || editing) {
+  1366→    return (
+  1367→      <UniverseForm
+  1368→        item={editing}
+  1369→        onSave={handleSave}
+  1370→        onCancel={() => {
+  1371→          setCreating(false)
+  1372→          setEditing(null)
+  1373→        }}
+  1374→        saving={saving}
+  1375→      />
+  1376→    )
+  1377→  }
+  1378→
+  1379→  return (
+  1380→    <div>
+  1381→      <div className="mb-6 flex items-center justify-between">
+  1382→        <SectionTitle
+  1383→          title="Universes"
+  1384→          jp="宇宙"
+  1385→          subtitle={`${items.length} universes configured`}
+  1386→        />
+  1387→        <PrimaryButton onClick={() => setCreating(true)}>
+  1388→          <Plus className="h-4 w-4" />
+  1389→          Add New
+  1390→        </PrimaryButton>
+  1391→      </div>
+  1392→
+  1393→      {loading ? (
+  1394→        <div className="flex items-center justify-center py-16">
+  1395→          <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+  1396→        </div>
+  1397→      ) : items.length === 0 ? (
+  1398→        <EmptyState label="No universes yet · Add your first universe" />
+  1399→      ) : (
+  1400→        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+  1401→          {items.map((u) => (
+  1402→            <div
+  1403→              key={u.id}
+  1404→              className="border border-[#2A2A2A] bg-[#0a0a0a] p-3 transition-colors hover:border-[#2A2A2A]/70"
+  1405→            >
+  1406→              <div className="flex items-start gap-3">
+  1407→                <Thumb src={u.image} alt={u.name} />
+  1408→                <div className="min-w-0 flex-1">
+  1409→                  <p className="truncate text-sm font-medium text-white/90">{u.name}</p>
+  1410→                  {u.japanese && (
+  1411→                    <p className="font-jp text-xs text-white/40">{u.japanese}</p>
+  1412→                  )}
+  1413→                  <p className="mt-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+  1414→                    {u.dropNumber} · Order {u.order}
+  1415→                  </p>
+  1416→                </div>
+  1417→              </div>
+  1418→              <div className="mt-3 flex items-center justify-end gap-2">
+  1419→                <button
+  1420→                  onClick={() => setEditing(u)}
+  1421→                  className="flex items-center gap-1.5 border border-[#2A2A2A] px-2 py-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/60 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55]"
+  1422→                >
+  1423→                  <Pencil className="h-3 w-3" /> Edit
+  1424→                </button>
+  1425→                <button
+  1426→                  onClick={() => setDeleteId(u.id)}
+  1427→                  className="flex items-center gap-1.5 border border-[#2A2A2A] px-2 py-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/60 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55]"
+  1428→                >
+  1429→                  <Trash2 className="h-3 w-3" /> Delete
+  1430→                </button>
+  1431→              </div>
+  1432→            </div>
+  1433→          ))}
+  1434→        </div>
+  1435→      )}
+  1436→
+  1437→      <ConfirmDialog
+  1438→        open={!!deleteId}
+  1439→        title="Delete Universe"
+  1440→        message="This action cannot be undone. The universe entry will be permanently removed."
+  1441→        onConfirm={handleDelete}
+  1442→        onCancel={() => setDeleteId(null)}
+  1443→        loading={deleting}
+  1444→      />
+  1445→    </div>
+  1446→  )
+  1447→}
+  1448→
+  1449→// ============================================================================
+  1450→// Drops Tab
+  1451→// ============================================================================
+  1452→
+  1453→function DropsTab() {
+  1454→  const { toast } = useToast()
+  1455→  const [items, setItems] = useState<Drop[]>([])
+  1456→  const [loading, setLoading] = useState(true)
+  1457→  const [editing, setEditing] = useState<Drop | null>(null)
+  1458→  const [creating, setCreating] = useState(false)
+  1459→  const [saving, setSaving] = useState(false)
+  1460→  const [deleteId, setDeleteId] = useState<string | null>(null)
+  1461→  const [deleting, setDeleting] = useState(false)
+  1462→
+  1463→  const fetchItems = useCallback(async () => {
+  1464→    setLoading(true)
+  1465→    try {
+  1466→      const res = await fetch('/api/admin/drops')
+  1467→      if (res.ok) setItems(await res.json())
+  1468→    } catch {
+  1469→      toast({ title: 'Failed to load drops', variant: 'destructive' })
+  1470→    } finally {
+  1471→      setLoading(false)
+  1472→    }
+  1473→  }, [toast])
+  1474→
+  1475→  useEffect(() => {
+  1476→    fetchItems()
+  1477→  }, [fetchItems])
+  1478→
+  1479→  const handleSave = async (data: DropFormData) => {
+  1480→    setSaving(true)
+  1481→    try {
+  1482→      const url = editing ? `/api/admin/drops/${editing.id}` : '/api/admin/drops'
+  1483→      const method = editing ? 'PUT' : 'POST'
+  1484→      const res = await fetch(url, {
+  1485→        method,
+  1486→        headers: { 'Content-Type': 'application/json' },
+  1487→        body: JSON.stringify({ ...data, order: parseInt(data.order) || 0 }),
+  1488→      })
+  1489→      const result = await res.json()
+  1490→      if (!res.ok) {
+  1491→        toast({ title: 'Save failed', description: result.error, variant: 'destructive' })
+  1492→      } else {
+  1493→        toast({ title: editing ? 'Drop updated' : 'Drop created' })
+  1494→        setEditing(null)
+  1495→        setCreating(false)
+  1496→        fetchItems()
+  1497→      }
+  1498→    } catch {
+  1499→      toast({ title: 'Network error', variant: 'destructive' })
+  1500→    } finally {
+  1501→      setSaving(false)
+  1502→    }
+  1503→  }
+  1504→
+  1505→  const handleDelete = async () => {
+  1506→    if (!deleteId) return
+  1507→    setDeleting(true)
+  1508→    try {
+  1509→      const res = await fetch(`/api/admin/drops/${deleteId}`, { method: 'DELETE' })
+  1510→      if (!res.ok) {
+  1511→        const data = await res.json()
+  1512→        toast({ title: 'Delete failed', description: data.error, variant: 'destructive' })
+  1513→      } else {
+  1514→        toast({ title: 'Drop deleted' })
+  1515→        setDeleteId(null)
+  1516→        fetchItems()
+  1517→      }
+  1518→    } catch {
+  1519→      toast({ title: 'Network error', variant: 'destructive' })
+  1520→    } finally {
+  1521→      setDeleting(false)
+  1522→    }
+  1523→  }
+  1524→
+  1525→  if (creating || editing) {
+  1526→    return (
+  1527→      <DropForm
+  1528→        item={editing}
+  1529→        onSave={handleSave}
+  1530→        onCancel={() => {
+  1531→          setCreating(false)
+  1532→          setEditing(null)
+  1533→        }}
+  1534→        saving={saving}
+  1535→      />
+  1536→    )
+  1537→  }
+  1538→
+  1539→  return (
+  1540→    <div>
+  1541→      <div className="mb-6 flex items-center justify-between">
+  1542→        <SectionTitle
+  1543→          title="Drops"
+  1544→          jp="ドロップ"
+  1545→          subtitle={`${items.length} drops scheduled`}
+  1546→        />
+  1547→        <PrimaryButton onClick={() => setCreating(true)}>
+  1548→          <Plus className="h-4 w-4" />
+  1549→          Add New
+  1550→        </PrimaryButton>
+  1551→      </div>
+  1552→
+  1553→      {loading ? (
+  1554→        <div className="flex items-center justify-center py-16">
+  1555→          <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+  1556→        </div>
+  1557→      ) : items.length === 0 ? (
+  1558→        <EmptyState label="No drops yet · Add your first drop" />
+  1559→      ) : (
+  1560→        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+  1561→          {items.map((d) => (
+  1562→            <div
+  1563→              key={d.id}
+  1564→              className="border border-[#2A2A2A] bg-[#0a0a0a] p-3 transition-colors hover:border-[#2A2A2A]/70"
+  1565→            >
+  1566→              <div className="flex items-start gap-3">
+  1567→                <Thumb src={d.image} alt={d.title} />
+  1568→                <div className="min-w-0 flex-1">
+  1569→                  <div className="flex items-center gap-2">
+  1570→                    <span className="font-mono-tech text-[10px] uppercase tracking-wider text-[#FF2D55]">
+  1571→                      {d.number}
+  1572→                    </span>
+  1573→                    {d.japanese && (
+  1574→                      <span className="font-jp text-[10px] text-white/40">{d.japanese}</span>
+  1575→                    )}
+  1576→                  </div>
+  1577→                  <p className="truncate text-sm font-medium text-white/90">{d.title}</p>
+  1578→                  <span
+  1579→                    className={`mt-1 inline-block px-1.5 py-0.5 font-mono-tech text-[8px] uppercase tracking-wider ${
+  1580→                      d.status === 'AVAILABLE'
+  1581→                        ? 'bg-[#FF2D55]/15 text-[#FF2D55]'
+  1582→                        : 'border border-[#2A2A2A] text-white/50'
+  1583→                    }`}
+  1584→                  >
+  1585→                    {d.status}
+  1586→                  </span>
+  1587→                </div>
+  1588→              </div>
+  1589→              <div className="mt-3 flex items-center justify-end gap-2">
+  1590→                <button
+  1591→                  onClick={() => setEditing(d)}
+  1592→                  className="flex items-center gap-1.5 border border-[#2A2A2A] px-2 py-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/60 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55]"
+  1593→                >
+  1594→                  <Pencil className="h-3 w-3" /> Edit
+  1595→                </button>
+  1596→                <button
+  1597→                  onClick={() => setDeleteId(d.id)}
+  1598→                  className="flex items-center gap-1.5 border border-[#2A2A2A] px-2 py-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/60 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55]"
+  1599→                >
+  1600→                  <Trash2 className="h-3 w-3" /> Delete
+  1601→                </button>
+  1602→              </div>
+  1603→            </div>
+  1604→          ))}
+  1605→        </div>
+  1606→      )}
+  1607→
+  1608→      <ConfirmDialog
+  1609→        open={!!deleteId}
+  1610→        title="Delete Drop"
+  1611→        message="This action cannot be undone. The drop will be permanently removed."
+  1612→        onConfirm={handleDelete}
+  1613→        onCancel={() => setDeleteId(null)}
+  1614→        loading={deleting}
+  1615→      />
+  1616→    </div>
+  1617→  )
+  1618→}
+  1619→
+  1620→// ============================================================================
+  1621→// Lifestyle Tab
+  1622→// ============================================================================
+  1623→
+  1624→function LifestyleTab() {
+  1625→  const { toast } = useToast()
+  1626→  const [items, setItems] = useState<Lifestyle[]>([])
+  1627→  const [loading, setLoading] = useState(true)
+  1628→  const [editing, setEditing] = useState<Lifestyle | null>(null)
+  1629→  const [creating, setCreating] = useState(false)
+  1630→  const [saving, setSaving] = useState(false)
+  1631→  const [deleteId, setDeleteId] = useState<string | null>(null)
+  1632→  const [deleting, setDeleting] = useState(false)
+  1633→
+  1634→  const fetchItems = useCallback(async () => {
+  1635→    setLoading(true)
+  1636→    try {
+  1637→      const res = await fetch('/api/admin/lifestyle')
+  1638→      if (res.ok) setItems(await res.json())
+  1639→    } catch {
+  1640→      toast({ title: 'Failed to load lifestyle items', variant: 'destructive' })
+  1641→    } finally {
+  1642→      setLoading(false)
+  1643→    }
+  1644→  }, [toast])
+  1645→
+  1646→  useEffect(() => {
+  1647→    fetchItems()
+  1648→  }, [fetchItems])
+  1649→
+  1650→  const handleSave = async (data: LifestyleFormData) => {
+  1651→    setSaving(true)
+  1652→    try {
+  1653→      const url = editing
+  1654→        ? `/api/admin/lifestyle/${editing.id}`
+  1655→        : '/api/admin/lifestyle'
+  1656→      const method = editing ? 'PUT' : 'POST'
+  1657→      const res = await fetch(url, {
+  1658→        method,
+  1659→        headers: { 'Content-Type': 'application/json' },
+  1660→        body: JSON.stringify({ ...data, order: parseInt(data.order) || 0 }),
+  1661→      })
+  1662→      const result = await res.json()
+  1663→      if (!res.ok) {
+  1664→        toast({ title: 'Save failed', description: result.error, variant: 'destructive' })
+  1665→      } else {
+  1666→        toast({ title: editing ? 'Lifestyle updated' : 'Lifestyle created' })
+  1667→        setEditing(null)
+  1668→        setCreating(false)
+  1669→        fetchItems()
+  1670→      }
+  1671→    } catch {
+  1672→      toast({ title: 'Network error', variant: 'destructive' })
+  1673→    } finally {
+  1674→      setSaving(false)
+  1675→    }
+  1676→  }
+  1677→
+  1678→  const handleDelete = async () => {
+  1679→    if (!deleteId) return
+  1680→    setDeleting(true)
+  1681→    try {
+  1682→      const res = await fetch(`/api/admin/lifestyle/${deleteId}`, { method: 'DELETE' })
+  1683→      if (!res.ok) {
+  1684→        const data = await res.json()
+  1685→        toast({ title: 'Delete failed', description: data.error, variant: 'destructive' })
+  1686→      } else {
+  1687→        toast({ title: 'Lifestyle deleted' })
+  1688→        setDeleteId(null)
+  1689→        fetchItems()
+  1690→      }
+  1691→    } catch {
+  1692→      toast({ title: 'Network error', variant: 'destructive' })
+  1693→    } finally {
+  1694→      setDeleting(false)
+  1695→    }
+  1696→  }
+  1697→
+  1698→  if (creating || editing) {
+  1699→    return (
+  1700→      <LifestyleForm
+  1701→        item={editing}
+  1702→        onSave={handleSave}
+  1703→        onCancel={() => {
+  1704→          setCreating(false)
+  1705→          setEditing(null)
+  1706→        }}
+  1707→        saving={saving}
+  1708→      />
+  1709→    )
+  1710→  }
+  1711→
+  1712→  return (
+  1713→    <div>
+  1714→      <div className="mb-6 flex items-center justify-between">
+  1715→        <SectionTitle
+  1716→          title="Lifestyle"
+  1717→          jp="生活"
+  1718→          subtitle={`${items.length} scenes configured`}
+  1719→        />
+  1720→        <PrimaryButton onClick={() => setCreating(true)}>
+  1721→          <Plus className="h-4 w-4" />
+  1722→          Add New
+  1723→        </PrimaryButton>
+  1724→      </div>
+  1725→
+  1726→      {loading ? (
+  1727→        <div className="flex items-center justify-center py-16">
+  1728→          <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+  1729→        </div>
+  1730→      ) : items.length === 0 ? (
+  1731→        <EmptyState label="No lifestyle items yet · Add your first scene" />
+  1732→      ) : (
+  1733→        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+  1734→          {items.map((l) => (
+  1735→            <div
+  1736→              key={l.id}
+  1737→              className="border border-[#2A2A2A] bg-[#0a0a0a] p-3 transition-colors hover:border-[#2A2A2A]/70"
+  1738→            >
+  1739→              <div className="flex items-start gap-3">
+  1740→                <Thumb src={l.image} alt={l.label} />
+  1741→                <div className="min-w-0 flex-1">
+  1742→                  <span className="font-mono-tech text-[10px] uppercase tracking-wider text-[#FF2D55]">
+  1743→                    {l.tag}
+  1744→                  </span>
+  1745→                  <p className="truncate text-sm font-medium text-white/90">{l.label}</p>
+  1746→                  {l.japanese && (
+  1747→                    <p className="font-jp text-xs text-white/40">{l.japanese}</p>
+  1748→                  )}
+  1749→                </div>
+  1750→              </div>
+  1751→              <div className="mt-3 flex items-center justify-end gap-2">
+  1752→                <button
+  1753→                  onClick={() => setEditing(l)}
+  1754→                  className="flex items-center gap-1.5 border border-[#2A2A2A] px-2 py-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/60 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55]"
+  1755→                >
+  1756→                  <Pencil className="h-3 w-3" /> Edit
+  1757→                </button>
+  1758→                <button
+  1759→                  onClick={() => setDeleteId(l.id)}
+  1760→                  className="flex items-center gap-1.5 border border-[#2A2A2A] px-2 py-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/60 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55]"
+  1761→                >
+  1762→                  <Trash2 className="h-3 w-3" /> Delete
+  1763→                </button>
+  1764→              </div>
+  1765→            </div>
+  1766→          ))}
+  1767→        </div>
+  1768→      )}
+  1769→
+  1770→      <ConfirmDialog
+  1771→        open={!!deleteId}
+  1772→        title="Delete Lifestyle"
+  1773→        message="This action cannot be undone. The lifestyle scene will be permanently removed."
+  1774→        onConfirm={handleDelete}
+  1775→        onCancel={() => setDeleteId(null)}
+  1776→        loading={deleting}
+  1777→      />
+  1778→    </div>
+  1779→  )
+  1780→}
+  1781→
+  1782→// ============================================================================
+  1783→// Main Admin Panel
+  1784→// ============================================================================
+  1785→
+  1786→export function AdminPanel({ onClose }: AdminPanelProps) {
+  1787→  const [authChecked, setAuthChecked] = useState(false)
+  1788→  const [authed, setAuthed] = useState(false)
+  1789→  const [activeTab, setActiveTab] = useState<TabId>('products')
+  1790→  const [loggingOut, setLoggingOut] = useState(false)
+  1791→
+  1792→  // Check auth on mount
+  1793→  useEffect(() => {
+  1794→    let cancelled = false
+  1795→    async function check() {
+  1796→      try {
+  1797→        const res = await fetch('/api/admin/auth-check')
+  1798→        if (cancelled) return
+  1799→        const data = await res.json()
+  1800→        setAuthed(!!data.authenticated)
+  1801→      } catch {
+  1802→        if (!cancelled) setAuthed(false)
+  1803→      } finally {
+  1804→        if (!cancelled) setAuthChecked(true)
+  1805→      }
+  1806→    }
+  1807→    check()
+  1808→    return () => {
+  1809→      cancelled = true
+  1810→    }
+  1811→  }, [])
+  1812→
+  1813→  const handleLogout = async () => {
+  1814→    setLoggingOut(true)
+  1815→    try {
+  1816→      await fetch('/api/admin/logout', { method: 'POST' })
+  1817→      setAuthed(false)
+  1818→    } catch {
+  1819→      // ignore
+  1820→    } finally {
+  1821→      setLoggingOut(false)
+  1822→    }
+  1823→  }
+  1824→
+  1825→  // Initial loading splash (before auth check completes)
+  1826→  if (!authChecked) {
+  1827→    return (
+  1828→      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[#050505]">
+  1829→        <div className="flex flex-col items-center gap-3">
+  1830→          <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+  1831→          <p className="font-mono-tech text-[10px] uppercase tracking-wider text-white/30">
+  1832→            Verifying session...
+  1833→          </p>
+  1834→        </div>
+  1835→      </div>
+  1836→    )
+  1837→  }
+  1838→
+  1839→  // Login screen
+  1840→  if (!authed) {
+  1841→    return <LoginScreen onSuccess={() => setAuthed(true)} onClose={onClose} />
+  1842→  }
+  1843→
+  1844→  // Dashboard
+  1845→  return (
+  1846→    <div className="fixed inset-0 z-[200] flex flex-col overflow-y-auto bg-[#050505]">
+  1847→      {/* Top bar */}
+  1848→      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[#2A2A2A] bg-[#050505]/95 px-4 py-3 backdrop-blur sm:px-6">
+  1849→        <div className="flex items-center gap-3">
+  1850→          <button
+  1851→            onClick={onClose}
+  1852→            className="flex h-9 w-9 items-center justify-center border border-[#2A2A2A] text-white/50 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55]"
+  1853→            aria-label="Back to site"
+  1854→          >
+  1855→            <ArrowLeft className="h-4 w-4" />
+  1856→          </button>
+  1857→          <div>
+  1858→            <h1 className="font-display text-base uppercase leading-none tracking-tight text-white sm:text-lg">
+  1859→              Street Scout Admin
+  1860→            </h1>
+  1861→            <p className="mt-0.5 hidden font-jp text-[10px] tracking-wider text-white/30 sm:block">
+  1862→              管理パネル
+  1863→            </p>
+  1864→          </div>
+  1865→        </div>
+  1866→
+  1867→        <button
+  1868→          onClick={handleLogout}
+  1869→          disabled={loggingOut}
+  1870→          className="flex items-center gap-2 border border-[#2A2A2A] px-3 py-2 font-mono-tech text-[10px] uppercase tracking-wider text-white/60 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55] disabled:opacity-50"
+  1871→        >
+  1872→          {loggingOut ? (
+  1873→            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+  1874→          ) : (
+  1875→            <LogOut className="h-3.5 w-3.5" />
+  1876→          )}
+  1877→          Logout
+  1878→        </button>
+  1879→      </header>
+  1880→
+  1881→      <div className="flex flex-1 flex-col md:flex-row">
+  1882→        {/* Sidebar / tabs */}
+  1883→        <nav className="border-b border-[#2A2A2A] bg-[#0a0a0a] md:w-56 md:border-b-0 md:border-r">
+  1884→          <div className="flex gap-1 overflow-x-auto p-3 no-scrollbar md:flex-col">
+  1885→            {TABS.map((tab) => {
+  1886→              const Icon = tab.icon
+  1887→              const isActive = activeTab === tab.id
+  1888→              return (
+  1889→                <button
+  1890→                  key={tab.id}
+  1891→                  onClick={() => setActiveTab(tab.id)}
+  1892→                  className={`flex flex-shrink-0 items-center gap-3 px-3 py-2.5 text-left transition-colors md:w-full ${
+  1893→                    isActive
+  1894→                      ? 'bg-[#FF2D55]/10 text-[#FF2D55]'
+  1895→                      : 'text-white/50 hover:bg-white/5 hover:text-white/80'
+  1896→                  }`}
+  1897→                >
+  1898→                  <Icon className="h-4 w-4 flex-shrink-0" />
+  1899→                  <div className="flex flex-col">
+  1900→                    <span className="font-mono-tech text-[10px] uppercase tracking-wider">
+  1901→                      {tab.label}
+  1902→                    </span>
+  1903→                    <span className="font-jp text-[9px] tracking-wider text-white/30">
+  1904→                      {tab.jp}
+  1905→                    </span>
+  1906→                  </div>
+  1907→                </button>
+  1908→              )
+  1909→            })}
+  1910→          </div>
+  1911→        </nav>
+  1912→
+  1913→        {/* Main content */}
+  1914→        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+  1915→          <div className="mx-auto max-w-5xl">
+  1916→            {activeTab === 'products' && <ProductsTab />}
+  1917→            {activeTab === 'universes' && <UniversesTab />}
+  1918→            {activeTab === 'drops' && <DropsTab />}
+  1919→            {activeTab === 'lifestyle' && <LifestyleTab />}
+  1920→          </div>
+  1921→        </main>
+  1922→      </div>
+  1923→    </div>
+  1924→  )
+  1925→}
+  1926→

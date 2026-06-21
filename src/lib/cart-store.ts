@@ -2,14 +2,28 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CartItem, Product } from './types'
 
+export interface AppliedCoupon {
+  id: string
+  code: string
+  type: 'DISCOUNT' | 'FREE_SHIPPING' | 'FREE_GIFT'
+  value: number
+  giftName: string
+  discountAmount: number
+  freeShipping: boolean
+  description: string
+}
+
 interface CartState {
   items: CartItem[]
   isOpen: boolean
   isFlying: boolean
   flyTarget: { x: number; y: number } | null
+  coupon: AppliedCoupon | null
   addItem: (product: Product, size: string, quantity?: number) => void
   removeItem: (productId: string, size: string) => void
   updateQuantity: (productId: string, size: string, quantity: number) => void
+  applyCoupon: (coupon: AppliedCoupon) => void
+  removeCoupon: () => void
   clearCart: () => void
   openCart: () => void
   closeCart: () => void
@@ -17,6 +31,9 @@ interface CartState {
   triggerFly: (x: number, y: number) => void
   getTotalItems: () => number
   getTotalPrice: () => number
+  getDiscount: () => number
+  getFinalTotal: () => number
+  getFreeShipping: () => boolean
 }
 
 export const useCart = create<CartState>()(
@@ -26,6 +43,7 @@ export const useCart = create<CartState>()(
       isOpen: false,
       isFlying: false,
       flyTarget: null,
+      coupon: null,
       addItem: (product, size, quantity = 1) => {
         const items = get().items
         const existing = items.find(
@@ -42,6 +60,8 @@ export const useCart = create<CartState>()(
         } else {
           set({ items: [...items, { product, size, quantity }] })
         }
+        // Coupon becomes stale when cart changes — remove it so user re-validates
+        if (get().coupon) set({ coupon: null })
       },
       removeItem: (productId, size) => {
         set({
@@ -49,6 +69,7 @@ export const useCart = create<CartState>()(
             (item) => !(item.product.id === productId && item.size === size)
           ),
         })
+        if (get().coupon) set({ coupon: null })
       },
       updateQuantity: (productId, size, quantity) => {
         if (quantity <= 0) {
@@ -62,8 +83,11 @@ export const useCart = create<CartState>()(
               : item
           ),
         })
+        if (get().coupon) set({ coupon: null })
       },
-      clearCart: () => set({ items: [] }),
+      applyCoupon: (coupon) => set({ coupon }),
+      removeCoupon: () => set({ coupon: null }),
+      clearCart: () => set({ items: [], coupon: null }),
       openCart: () => set({ isOpen: true }),
       closeCart: () => set({ isOpen: false }),
       toggleCart: () => set({ isOpen: !get().isOpen }),
@@ -78,6 +102,20 @@ export const useCart = create<CartState>()(
           (total, item) => total + item.product.price * item.quantity,
           0
         ),
+      getDiscount: () => {
+        const coupon = get().coupon
+        if (!coupon) return 0
+        return coupon.discountAmount || 0
+      },
+      getFinalTotal: () => {
+        const total = get().getTotalPrice()
+        const discount = get().getDiscount()
+        return Math.max(0, total - discount)
+      },
+      getFreeShipping: () => {
+        const coupon = get().coupon
+        return coupon ? coupon.freeShipping : false
+      },
     }),
     {
       name: 'street-scout-cart',

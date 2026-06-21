@@ -15,6 +15,9 @@ import {
   Sparkles,
   ArrowLeft,
   AlertTriangle,
+  Tag,
+  Power,
+  Bell,
 } from 'lucide-react'
 import { ImageUpload } from '@/components/admin/image-upload'
 import { useToast } from '@/hooks/use-toast'
@@ -29,7 +32,43 @@ interface AdminPanelProps {
   onClose: () => void
 }
 
-type TabId = 'products' | 'universes' | 'drops' | 'lifestyle'
+type TabId =
+  | 'products'
+  | 'universes'
+  | 'drops'
+  | 'lifestyle'
+  | 'coupons'
+  | 'store'
+  | 'notifications'
+
+interface Coupon {
+  id: string
+  code: string
+  description: string
+  type: string // DISCOUNT | FREE_SHIPPING | FREE_GIFT
+  value: number
+  giftName: string
+  minOrder: number
+  isActive: boolean
+  expiresAt: string | null
+  createdAt: string
+}
+
+interface StoreStatus {
+  id?: string
+  accepting: boolean
+  message: string
+}
+
+interface AdminNotification {
+  id: string
+  title: string
+  body: string
+  type: string // INFO | OFFER | COUPON | WARNING
+  link: string
+  isActive: boolean
+  createdAt: string
+}
 
 // ============================================================================
 // Shared primitives
@@ -903,6 +942,255 @@ function Thumb({ src, alt }: { src: string; alt: string }) {
 }
 
 // ============================================================================
+// Coupon Form
+// ============================================================================
+
+interface CouponFormData {
+  code: string
+  description: string
+  type: string // DISCOUNT | FREE_SHIPPING | FREE_GIFT
+  value: string
+  giftName: string
+  minOrder: string
+  isActive: boolean
+  expiresAt: string // '' or datetime-local string
+}
+
+function emptyCouponForm(): CouponFormData {
+  return {
+    code: '',
+    description: '',
+    type: 'DISCOUNT',
+    value: '0',
+    giftName: '',
+    minOrder: '0',
+    isActive: true,
+    expiresAt: '',
+  }
+}
+
+function CouponForm({
+  item,
+  onSave,
+  onCancel,
+  saving,
+}: {
+  item: Coupon | null
+  onSave: (data: CouponFormData) => void
+  onCancel: () => void
+  saving: boolean
+}) {
+  const [form, setForm] = useState<CouponFormData>(() =>
+    item
+      ? {
+          code: item.code,
+          description: item.description || '',
+          type: item.type,
+          value: String(item.value ?? 0),
+          giftName: item.giftName || '',
+          minOrder: String(item.minOrder ?? 0),
+          isActive: item.isActive,
+          expiresAt: item.expiresAt ? item.expiresAt.slice(0, 16) : '',
+        }
+      : emptyCouponForm()
+  )
+
+  const set = <K extends keyof CouponFormData>(key: K, value: CouponFormData[K]) => {
+    setForm((f) => ({ ...f, [key]: value }))
+  }
+
+  return (
+    <FormShell
+      title={item ? 'Edit Coupon' : 'New Coupon'}
+      jp={item ? 'クーポン編集' : '新クーポン'}
+      onClose={onCancel}
+      onSave={() => onSave(form)}
+      saving={saving}
+    >
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field label="Code" hint="Auto-uppercase">
+          <TextInput
+            value={form.code}
+            onChange={(v) => set('code', v.toUpperCase())}
+            placeholder="SUMMER10"
+          />
+        </Field>
+        <Field label="Type">
+          <select
+            value={form.type}
+            onChange={(e) => set('type', e.target.value)}
+            className="w-full border border-[#2A2A2A] bg-[#0a0a0a] px-3 py-2 text-sm text-white/90 transition-colors focus:border-[#FF2D55] focus:outline-none"
+          >
+            <option value="DISCOUNT">DISCOUNT</option>
+            <option value="FREE_SHIPPING">FREE_SHIPPING</option>
+            <option value="FREE_GIFT">FREE_GIFT</option>
+          </select>
+        </Field>
+
+        <div className="md:col-span-2">
+          <Field label="Description">
+            <TextInput
+              value={form.description}
+              onChange={(v) => set('description', v)}
+              placeholder="10% off summer collection"
+            />
+          </Field>
+        </div>
+
+        {form.type === 'DISCOUNT' && (
+          <Field label="Value" hint="Percentage off (e.g. 10 = 10% off)">
+            <TextInput
+              value={form.value}
+              onChange={(v) => set('value', v)}
+              placeholder="10"
+              type="number"
+            />
+          </Field>
+        )}
+
+        {form.type === 'FREE_GIFT' && (
+          <Field label="Gift Name">
+            <TextInput
+              value={form.giftName}
+              onChange={(v) => set('giftName', v)}
+              placeholder="Free Sticker Pack"
+            />
+          </Field>
+        )}
+
+        <Field label="Min Order" hint="Minimum cart total to apply (0 = no minimum)">
+          <TextInput
+            value={form.minOrder}
+            onChange={(v) => set('minOrder', v)}
+            placeholder="0"
+            type="number"
+          />
+        </Field>
+
+        <Field label="Expires At" hint="Optional · leave empty for no expiry">
+          <input
+            type="datetime-local"
+            value={form.expiresAt}
+            onChange={(e) => set('expiresAt', e.target.value)}
+            className="w-full border border-[#2A2A2A] bg-[#0a0a0a] px-3 py-2 text-sm text-white/90 transition-colors focus:border-[#FF2D55] focus:outline-none"
+          />
+        </Field>
+
+        <div className="md:col-span-2">
+          <Toggle
+            checked={form.isActive}
+            onChange={(v) => set('isActive', v)}
+            label="Active"
+          />
+        </div>
+      </div>
+    </FormShell>
+  )
+}
+
+// ============================================================================
+// Notification Form
+// ============================================================================
+
+interface NotificationFormData {
+  title: string
+  body: string
+  type: string // INFO | OFFER | COUPON | WARNING
+  link: string
+  isActive: boolean
+}
+
+function emptyNotificationForm(): NotificationFormData {
+  return {
+    title: '',
+    body: '',
+    type: 'INFO',
+    link: '',
+    isActive: true,
+  }
+}
+
+function NotificationForm({
+  item,
+  onSave,
+  onCancel,
+  saving,
+}: {
+  item: AdminNotification | null
+  onSave: (data: NotificationFormData) => void
+  onCancel: () => void
+  saving: boolean
+}) {
+  const [form, setForm] = useState<NotificationFormData>(() =>
+    item
+      ? {
+          title: item.title,
+          body: item.body,
+          type: item.type,
+          link: item.link || '',
+          isActive: item.isActive,
+        }
+      : emptyNotificationForm()
+  )
+
+  const set = <K extends keyof NotificationFormData>(key: K, value: NotificationFormData[K]) => {
+    setForm((f) => ({ ...f, [key]: value }))
+  }
+
+  return (
+    <FormShell
+      title={item ? 'Edit Notification' : 'New Notification'}
+      jp={item ? '通知編集' : '新通知'}
+      onClose={onCancel}
+      onSave={() => onSave(form)}
+      saving={saving}
+    >
+      <div className="grid grid-cols-1 gap-4">
+        <Field label="Title">
+          <TextInput
+            value={form.title}
+            onChange={(v) => set('title', v)}
+            placeholder="Flash Sale Live"
+          />
+        </Field>
+        <Field label="Body">
+          <TextArea
+            value={form.body}
+            onChange={(v) => set('body', v)}
+            placeholder="Up to 30% off select items. Limited time only."
+            rows={4}
+          />
+        </Field>
+        <Field label="Type">
+          <select
+            value={form.type}
+            onChange={(e) => set('type', e.target.value)}
+            className="w-full border border-[#2A2A2A] bg-[#0a0a0a] px-3 py-2 text-sm text-white/90 transition-colors focus:border-[#FF2D55] focus:outline-none"
+          >
+            <option value="INFO">INFO</option>
+            <option value="OFFER">OFFER</option>
+            <option value="COUPON">COUPON</option>
+            <option value="WARNING">WARNING</option>
+          </select>
+        </Field>
+        <Field label="Link" hint="URL to navigate when clicked (e.g. #featured)">
+          <TextInput
+            value={form.link}
+            onChange={(v) => set('link', v)}
+            placeholder="#featured"
+          />
+        </Field>
+        <Toggle
+          checked={form.isActive}
+          onChange={(v) => set('isActive', v)}
+          label="Active"
+        />
+      </div>
+    </FormShell>
+  )
+}
+
+// ============================================================================
 // Login Screen
 // ============================================================================
 
@@ -1033,6 +1321,9 @@ const TABS: { id: TabId; label: string; jp: string; icon: typeof Package }[] = [
   { id: 'universes', label: 'Universes', jp: '宇宙', icon: Globe },
   { id: 'drops', label: 'Drops', jp: 'ドロップ', icon: Layers },
   { id: 'lifestyle', label: 'Lifestyle', jp: '生活', icon: Sparkles },
+  { id: 'coupons', label: 'Coupons', jp: 'クーポン', icon: Tag },
+  { id: 'store', label: 'Store', jp: 'ストア', icon: Power },
+  { id: 'notifications', label: 'Alerts', jp: '通知', icon: Bell },
 ]
 
 // ============================================================================
@@ -1780,6 +2071,634 @@ function LifestyleTab() {
 }
 
 // ============================================================================
+// Coupons Tab
+// ============================================================================
+
+function CouponsTab() {
+  const { toast } = useToast()
+  const [items, setItems] = useState<Coupon[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState<Coupon | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
+
+  const fetchItems = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/coupons')
+      if (res.ok) setItems(await res.json())
+    } catch {
+      toast({ title: 'Failed to load coupons', variant: 'destructive' })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    fetchItems()
+  }, [fetchItems])
+
+  const handleSave = async (data: CouponFormData) => {
+    setSaving(true)
+    try {
+      const url = editing ? `/api/admin/coupons/${editing.id}` : '/api/admin/coupons'
+      const method = editing ? 'PUT' : 'POST'
+      const payload = {
+        code: data.code,
+        description: data.description,
+        type: data.type,
+        value: parseFloat(data.value) || 0,
+        giftName: data.giftName,
+        minOrder: parseFloat(data.minOrder) || 0,
+        isActive: data.isActive,
+        expiresAt: data.expiresAt ? new Date(data.expiresAt).toISOString() : null,
+      }
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        toast({ title: 'Save failed', description: result.error, variant: 'destructive' })
+      } else {
+        toast({ title: editing ? 'Coupon updated' : 'Coupon created' })
+        setEditing(null)
+        setCreating(false)
+        fetchItems()
+      }
+    } catch {
+      toast({ title: 'Network error', variant: 'destructive' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteId) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/admin/coupons/${deleteId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json()
+        toast({ title: 'Delete failed', description: data.error, variant: 'destructive' })
+      } else {
+        toast({ title: 'Coupon deleted' })
+        setDeleteId(null)
+        fetchItems()
+      }
+    } catch {
+      toast({ title: 'Network error', variant: 'destructive' })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleToggleActive = async (coupon: Coupon) => {
+    setTogglingId(coupon.id)
+    try {
+      const res = await fetch(`/api/admin/coupons/${coupon.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...coupon, isActive: !coupon.isActive }),
+      })
+      if (!res.ok) {
+        toast({ title: 'Update failed', variant: 'destructive' })
+      } else {
+        setItems((prev) =>
+          prev.map((c) =>
+            c.id === coupon.id ? { ...c, isActive: !c.isActive } : c
+          )
+        )
+      }
+    } catch {
+      toast({ title: 'Network error', variant: 'destructive' })
+    } finally {
+      setTogglingId(null)
+    }
+  }
+
+  if (creating || editing) {
+    return (
+      <CouponForm
+        item={editing}
+        onSave={handleSave}
+        onCancel={() => {
+          setCreating(false)
+          setEditing(null)
+        }}
+        saving={saving}
+      />
+    )
+  }
+
+  // Color-code by type: DISCOUNT = white, FREE_SHIPPING = green, FREE_GIFT = pink
+  const typeStyle = (type: string) => {
+    switch (type) {
+      case 'FREE_SHIPPING':
+        return 'bg-[#22c55e]/15 text-[#22c55e]'
+      case 'FREE_GIFT':
+        return 'bg-[#FF2D55]/15 text-[#FF2D55]'
+      default:
+        return 'border border-[#2A2A2A] text-white/60'
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-6 flex items-center justify-between">
+        <SectionTitle
+          title="Coupons"
+          jp="クーポン"
+          subtitle={`${items.length} coupons configured`}
+        />
+        <PrimaryButton onClick={() => setCreating(true)}>
+          <Plus className="h-4 w-4" />
+          Add New Coupon
+        </PrimaryButton>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+        </div>
+      ) : items.length === 0 ? (
+        <EmptyState label="No coupons yet · Add your first coupon" />
+      ) : (
+        <div className="space-y-2">
+          <div className="hidden grid-cols-12 gap-3 border-b border-[#2A2A2A] px-3 pb-2 md:grid">
+            <span className="col-span-3 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+              Code
+            </span>
+            <span className="col-span-2 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+              Type
+            </span>
+            <span className="col-span-2 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+              Value
+            </span>
+            <span className="col-span-2 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+              Min Order
+            </span>
+            <span className="col-span-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+              Active
+            </span>
+            <span className="col-span-2 text-right font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+              Actions
+            </span>
+          </div>
+
+          {items.map((c) => (
+            <div
+              key={c.id}
+              className="grid grid-cols-12 items-center gap-3 border border-[#2A2A2A] bg-[#0a0a0a] px-3 py-2.5 transition-colors hover:border-[#2A2A2A]/70"
+            >
+              <div className="col-span-12 md:col-span-3">
+                <p className="font-mono-tech text-sm uppercase tracking-wider text-white/90">
+                  {c.code}
+                </p>
+                {c.description && (
+                  <p className="truncate text-[11px] text-white/40">{c.description}</p>
+                )}
+              </div>
+              <div className="col-span-4 md:col-span-2">
+                <span
+                  className={`inline-block px-1.5 py-0.5 font-mono-tech text-[8px] uppercase tracking-wider ${typeStyle(c.type)}`}
+                >
+                  {c.type}
+                </span>
+              </div>
+              <div className="col-span-4 md:col-span-2">
+                {c.type === 'DISCOUNT' && (
+                  <span className="text-sm font-medium text-white/90">{c.value}%</span>
+                )}
+                {c.type === 'FREE_GIFT' && (
+                  <span className="truncate text-xs text-white/70">
+                    {c.giftName || '—'}
+                  </span>
+                )}
+                {c.type === 'FREE_SHIPPING' && (
+                  <span className="text-xs text-white/40">—</span>
+                )}
+              </div>
+              <div className="col-span-4 md:col-span-2">
+                <span className="text-sm text-white/70">{formatINR(c.minOrder)}</span>
+              </div>
+              <div className="col-span-6 md:col-span-1">
+                <button
+                  onClick={() => handleToggleActive(c)}
+                  disabled={togglingId === c.id}
+                  className={`px-2 py-1 font-mono-tech text-[9px] uppercase tracking-wider transition-colors ${
+                    c.isActive
+                      ? 'bg-[#FF2D55]/20 text-[#FF2D55]'
+                      : 'border border-[#2A2A2A] text-white/40 hover:text-white/70'
+                  }`}
+                >
+                  {togglingId === c.id ? '...' : c.isActive ? 'On' : 'Off'}
+                </button>
+              </div>
+              <div className="col-span-6 flex items-center justify-end gap-1 md:col-span-2">
+                <button
+                  onClick={() => setEditing(c)}
+                  className="flex h-8 w-8 items-center justify-center border border-[#2A2A2A] text-white/50 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55]"
+                  aria-label={`Edit ${c.code}`}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => setDeleteId(c.id)}
+                  className="flex h-8 w-8 items-center justify-center border border-[#2A2A2A] text-white/50 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55]"
+                  aria-label={`Delete ${c.code}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!deleteId}
+        title="Delete Coupon"
+        message="This action cannot be undone. The coupon will be permanently removed."
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteId(null)}
+        loading={deleting}
+      />
+    </div>
+  )
+}
+
+// ============================================================================
+// Store Status Tab
+// ============================================================================
+
+function StoreStatusTab() {
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [accepting, setAccepting] = useState(true)
+  const [message, setMessage] = useState('')
+
+  const fetchStatus = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/store-status')
+      if (res.ok) {
+        const data: StoreStatus = await res.json()
+        setAccepting(data.accepting)
+        setMessage(data.message || '')
+      }
+    } catch {
+      toast({ title: 'Failed to load store status', variant: 'destructive' })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    fetchStatus()
+  }, [fetchStatus])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/admin/store-status', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accepting, message }),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        toast({ title: 'Save failed', description: result.error, variant: 'destructive' })
+      } else {
+        toast({ title: 'Store status updated' })
+      }
+    } catch {
+      toast({ title: 'Network error', variant: 'destructive' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <SectionTitle
+        title="Store Status"
+        jp="ストア"
+        subtitle="Control whether the storefront is accepting orders"
+      />
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Editor */}
+        <div className="border border-[#2A2A2A] bg-[#0a0a0a] p-5">
+          <div className="mb-5 flex items-center justify-between border border-[#2A2A2A] bg-[#111111] px-4 py-3">
+            <div>
+              <p className="font-mono-tech text-[10px] uppercase tracking-wider text-white/60">
+                Accepting Orders
+              </p>
+              <p className="font-jp text-[10px] tracking-wider text-white/30">注文受付</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAccepting(!accepting)}
+              className="relative h-6 w-11 rounded-full transition-colors"
+              style={{ backgroundColor: accepting ? '#FF2D55' : '#2A2A2A' }}
+              aria-label="Toggle accepting orders"
+            >
+              <span
+                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
+                  accepting ? 'left-5' : 'left-0.5'
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className={accepting ? 'pointer-events-none opacity-40' : ''}>
+            <Field label="Paused Message" hint="Shown to users when orders are paused">
+              <TextArea
+                value={message}
+                onChange={setMessage}
+                placeholder="We're temporarily pausing orders. Check back soon."
+                rows={4}
+              />
+            </Field>
+          </div>
+
+          <div className="mt-5 flex justify-end">
+            <PrimaryButton onClick={handleSave} loading={saving}>
+              Save Status
+            </PrimaryButton>
+          </div>
+        </div>
+
+        {/* Preview */}
+        <div className="border border-[#2A2A2A] bg-[#0a0a0a] p-5">
+          <p className="mb-3 font-mono-tech text-[10px] uppercase tracking-wider text-white/40">
+            User Preview · ユーザープレビュー
+          </p>
+          {accepting ? (
+            <div className="flex items-center gap-3 border border-[#22c55e]/30 bg-[#22c55e]/5 px-4 py-4">
+              <div className="h-2 w-2 flex-shrink-0 rounded-full bg-[#22c55e]" />
+              <div>
+                <p className="text-sm font-medium text-white/90">Store is open</p>
+                <p className="font-mono-tech text-[10px] uppercase tracking-wider text-white/40">
+                  Accepting orders normally
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="border border-[#FF2D55]/30 bg-[#FF2D55]/5 px-4 py-4">
+              <div className="mb-2 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-[#FF2D55]" />
+                <p className="text-sm font-medium text-white/90">Orders paused</p>
+              </div>
+              <p className="text-sm text-white/70">
+                {message || 'No message set. Users will see a generic paused notice.'}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================================
+// Notifications Tab
+// ============================================================================
+
+function NotificationsTab() {
+  const { toast } = useToast()
+  const [items, setItems] = useState<AdminNotification[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState<AdminNotification | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [togglingId, setTogglingId] = useState<string | null>(null)
+
+  const fetchItems = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/notifications')
+      if (res.ok) setItems(await res.json())
+    } catch {
+      toast({ title: 'Failed to load notifications', variant: 'destructive' })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    fetchItems()
+  }, [fetchItems])
+
+  const handleSave = async (data: NotificationFormData) => {
+    setSaving(true)
+    try {
+      const url = editing
+        ? `/api/admin/notifications/${editing.id}`
+        : '/api/admin/notifications'
+      const method = editing ? 'PUT' : 'POST'
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      const result = await res.json()
+      if (!res.ok) {
+        toast({ title: 'Save failed', description: result.error, variant: 'destructive' })
+      } else {
+        toast({ title: editing ? 'Notification updated' : 'Notification created' })
+        setEditing(null)
+        setCreating(false)
+        fetchItems()
+      }
+    } catch {
+      toast({ title: 'Network error', variant: 'destructive' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteId) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/admin/notifications/${deleteId}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        toast({ title: 'Delete failed', description: data.error, variant: 'destructive' })
+      } else {
+        toast({ title: 'Notification deleted' })
+        setDeleteId(null)
+        fetchItems()
+      }
+    } catch {
+      toast({ title: 'Network error', variant: 'destructive' })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const handleToggleActive = async (n: AdminNotification) => {
+    setTogglingId(n.id)
+    try {
+      const res = await fetch(`/api/admin/notifications/${n.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...n, isActive: !n.isActive }),
+      })
+      if (!res.ok) {
+        toast({ title: 'Update failed', variant: 'destructive' })
+      } else {
+        setItems((prev) =>
+          prev.map((x) =>
+            x.id === n.id ? { ...x, isActive: !n.isActive } : x
+          )
+        )
+      }
+    } catch {
+      toast({ title: 'Network error', variant: 'destructive' })
+    } finally {
+      setTogglingId(null)
+    }
+  }
+
+  if (creating || editing) {
+    return (
+      <NotificationForm
+        item={editing}
+        onSave={handleSave}
+        onCancel={() => {
+          setCreating(false)
+          setEditing(null)
+        }}
+        saving={saving}
+      />
+    )
+  }
+
+  // Color-code by type: INFO = white, OFFER = pink, COUPON = green, WARNING = pink
+  const typeStyle = (type: string) => {
+    switch (type) {
+      case 'OFFER':
+        return 'bg-[#FF2D55]/15 text-[#FF2D55]'
+      case 'COUPON':
+        return 'bg-[#22c55e]/15 text-[#22c55e]'
+      case 'WARNING':
+        return 'bg-[#FF2D55]/15 text-[#FF2D55]'
+      default:
+        return 'border border-[#2A2A2A] text-white/60'
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-6 flex items-center justify-between">
+        <SectionTitle
+          title="Notifications"
+          jp="通知"
+          subtitle={`${items.length} notifications configured`}
+        />
+        <PrimaryButton onClick={() => setCreating(true)}>
+          <Plus className="h-4 w-4" />
+          Create Notification
+        </PrimaryButton>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-6 w-6 animate-spin text-white/30" />
+        </div>
+      ) : items.length === 0 ? (
+        <EmptyState label="No notifications yet · Create your first alert" />
+      ) : (
+        <div className="space-y-2">
+          {items.map((n) => (
+            <div
+              key={n.id}
+              className="border border-[#2A2A2A] bg-[#0a0a0a] px-3 py-3 transition-colors hover:border-[#2A2A2A]/70"
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={`flex-shrink-0 px-1.5 py-0.5 font-mono-tech text-[8px] uppercase tracking-wider ${typeStyle(n.type)}`}
+                >
+                  {n.type}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-white/90">{n.title}</p>
+                  <p className="mt-0.5 line-clamp-2 text-xs text-white/50">{n.body}</p>
+                  {n.link && (
+                    <p className="mt-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/30">
+                      → {n.link}
+                    </p>
+                  )}
+                  <p className="mt-1 font-mono-tech text-[9px] uppercase tracking-wider text-white/25">
+                    {new Date(n.createdAt).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex flex-shrink-0 items-center gap-1">
+                  <button
+                    onClick={() => handleToggleActive(n)}
+                    disabled={togglingId === n.id}
+                    className={`px-2 py-1 font-mono-tech text-[9px] uppercase tracking-wider transition-colors ${
+                      n.isActive
+                        ? 'bg-[#FF2D55]/20 text-[#FF2D55]'
+                        : 'border border-[#2A2A2A] text-white/40 hover:text-white/70'
+                    }`}
+                  >
+                    {togglingId === n.id ? '...' : n.isActive ? 'On' : 'Off'}
+                  </button>
+                  <button
+                    onClick={() => setEditing(n)}
+                    className="flex h-8 w-8 items-center justify-center border border-[#2A2A2A] text-white/50 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55]"
+                    aria-label={`Edit ${n.title}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteId(n.id)}
+                    className="flex h-8 w-8 items-center justify-center border border-[#2A2A2A] text-white/50 transition-colors hover:border-[#FF2D55] hover:text-[#FF2D55]"
+                    aria-label={`Delete ${n.title}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!deleteId}
+        title="Delete Notification"
+        message="This action cannot be undone. The notification will be permanently removed."
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteId(null)}
+        loading={deleting}
+      />
+    </div>
+  )
+}
+
+// ============================================================================
 // Main Admin Panel
 // ============================================================================
 
@@ -1917,6 +2836,9 @@ export function AdminPanel({ onClose }: AdminPanelProps) {
             {activeTab === 'universes' && <UniversesTab />}
             {activeTab === 'drops' && <DropsTab />}
             {activeTab === 'lifestyle' && <LifestyleTab />}
+            {activeTab === 'coupons' && <CouponsTab />}
+            {activeTab === 'store' && <StoreStatusTab />}
+            {activeTab === 'notifications' && <NotificationsTab />}
           </div>
         </main>
       </div>

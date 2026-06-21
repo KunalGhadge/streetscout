@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { ShoppingBag, Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCart } from '@/lib/cart-store'
+import { NotificationBell } from './notification-bell'
 
 interface NavbarProps {
   onNavigate: (section: string) => void
@@ -82,6 +83,9 @@ export function Navbar({ onNavigate }: NavbarProps) {
 
           {/* Right side */}
           <div className="flex items-center gap-2">
+            {/* Notification Bell */}
+            <NotificationBell />
+
             <button
               onClick={openCart}
               className="group relative flex h-10 items-center gap-2 rounded-full border border-transparent px-3 transition-all hover:border-[#2A2A2A] hover:bg-white/[0.02]"
