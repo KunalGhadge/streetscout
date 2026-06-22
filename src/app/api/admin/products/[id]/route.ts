@@ -19,9 +19,30 @@ export async function PUT(
     // Build only the fields that are provided (partial update)
     const data: any = {}
 
-    if (body.name !== undefined) data.name = String(body.name).trim().slice(0, 200)
+    if (body.name !== undefined) {
+      const name = String(body.name).trim().slice(0, 200)
+      if (name.length === 0) {
+        return NextResponse.json({ error: 'Product name cannot be empty' }, { status: 400 })
+      }
+      data.name = name
+    }
     if (body.slug !== undefined) {
-      data.slug = String(body.slug).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      let slug = String(body.slug).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      // If slug becomes empty, generate from name or use product id
+      if (slug.length === 0 && body.name) {
+        slug = String(body.name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      }
+      if (slug.length === 0) {
+        slug = `product-${id.slice(-6)}`
+      }
+      // Check for slug uniqueness (excluding current product)
+      const existing = await db.product.findFirst({
+        where: { slug, NOT: { id } },
+      })
+      if (existing) {
+        return NextResponse.json({ error: 'Slug already in use by another product' }, { status: 400 })
+      }
+      data.slug = slug
     }
     if (body.collection !== undefined) data.collection = String(body.collection).slice(0, 200)
     if (body.collectionTag !== undefined) data.collectionTag = String(body.collectionTag).slice(0, 200)
@@ -56,7 +77,11 @@ export async function PUT(
     return NextResponse.json(product)
   } catch (error: any) {
     console.error('Update product error:', error)
-    return NextResponse.json({ error: 'Failed to update product' }, { status: 500 })
+    // Return the actual error message so the admin can see what's wrong
+    return NextResponse.json(
+      { error: error.message || 'Failed to update product' },
+      { status: 500 }
+    )
   }
 }
 
@@ -75,6 +100,9 @@ export async function DELETE(
     return NextResponse.json({ success: true })
   } catch (error: any) {
     console.error('Delete product error:', error)
-    return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 })
+    return NextResponse.json(
+      { error: error.message || 'Failed to delete product' },
+      { status: 500 }
+    )
   }
 }
