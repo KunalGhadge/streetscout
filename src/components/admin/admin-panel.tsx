@@ -107,6 +107,8 @@ interface AffiliateOrder {
   affiliateId: string
   code: string
   creatorName: string
+  customerName: string
+  customerPhone: string
   orderTotal: number
   commissionDue: number
   status: string // PENDING | CONFIRMED | CANCELLED
@@ -3822,6 +3824,17 @@ function AffiliateDashboardTab() {
                     <p className="font-mono-tech text-[9px] uppercase tracking-wider text-[#FF2D55]">
                       {o.code}
                     </p>
+                    {/* Customer details — so you know who ordered */}
+                    {o.customerName && (
+                      <p className="mt-1 truncate text-xs text-white/70">
+                        👤 {o.customerName}
+                      </p>
+                    )}
+                    {o.customerPhone && (
+                      <p className="font-mono-tech text-[9px] text-white/50">
+                        📱 {o.customerPhone}
+                      </p>
+                    )}
                   </div>
                   <div className="col-span-3 md:col-span-2">
                     <span className="text-sm font-medium text-white/90">

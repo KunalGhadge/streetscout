@@ -147,6 +147,8 @@ model AffiliateOrder {
   affiliate       Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
   code            String   // snapshot of the code used (in case affiliate is deleted)
   creatorName     String   // snapshot of creator name
+  customerName    String   @default("") // who placed the order
+  customerPhone   String   @default("") // customer's phone number
   orderTotal      Float    // final total after discount
   commissionDue   Float    // calculated commission amount in ₹
   status          String   @default("PENDING") // PENDING | CONFIRMED | CANCELLED

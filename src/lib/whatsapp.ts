@@ -1,7 +1,6 @@
 import type { CartItem } from './types'
 import type { AppliedCoupon, AppliedAffiliate } from './cart-store'
 
-// Fallback WhatsApp number (used if settings API fails)
 const FALLBACK_WHATSAPP_NUMBER = '918451818607'
 
 let cachedNumber: string | null = null
@@ -27,7 +26,9 @@ export function generateWhatsAppMessage(
   total: number,
   coupon?: AppliedCoupon | null,
   affiliate?: AppliedAffiliate | null,
-  freeShipping?: boolean
+  freeShipping?: boolean,
+  customerName?: string,
+  customerPhone?: string
 ): string {
   const lines = items.map((item, index) => {
     const { product, size, quantity } = item
@@ -39,11 +40,21 @@ export function generateWhatsAppMessage(
   const discount = coupon?.discountAmount || affiliate?.discountAmount || 0
   const finalTotal = Math.max(0, subtotal - discount)
 
-  let message = `Hey Street Scout! I'd like to order:\n\n${lines.join('\n')}`
+  let message = `Hey Street Scout! I'd like to order:\n\n`
+
+  // Customer details at the top so you see who's ordering
+  if (customerName || customerPhone) {
+    message += `👤 Customer Details:\n`
+    if (customerName) message += `Name: ${customerName}\n`
+    if (customerPhone) message += `Phone: ${customerPhone}\n`
+    message += `\n`
+  }
+
+  message += `🛒 Order:\n${lines.join('\n')}`
 
   // Add coupon info if applied
   if (coupon) {
-    message += `\n\nCoupon: ${coupon.code}`
+    message += `\n\n🎟️ Coupon: ${coupon.code}`
     if (coupon.type === 'DISCOUNT') {
       message += ` (${coupon.value}% off)`
     } else if (coupon.type === 'FREE_SHIPPING') {
@@ -55,7 +66,7 @@ export function generateWhatsAppMessage(
 
   // Add affiliate info if applied
   if (affiliate) {
-    message += `\n\nAffiliate Code: ${affiliate.code} (${affiliate.creatorName})`
+    message += `\n\n🤝 Affiliate Code: ${affiliate.code} (${affiliate.creatorName})`
     if (affiliate.rewardType === 'DISCOUNT') {
       message += ` — ${affiliate.rewardValue}% off`
     } else if (affiliate.rewardType === 'FREE_GIFT' && affiliate.rewardGiftName) {
@@ -64,7 +75,8 @@ export function generateWhatsAppMessage(
   }
 
   if (discount > 0) {
-    message += `\n\nSubtotal: ${formatINR(subtotal)}`
+    message += `\n\n💰 Bill Summary:`
+    message += `\nSubtotal: ${formatINR(subtotal)}`
     message += `\nDiscount: -${formatINR(discount)}`
   }
 
@@ -84,9 +96,11 @@ export async function getWhatsAppUrl(
   total: number,
   coupon?: AppliedCoupon | null,
   affiliate?: AppliedAffiliate | null,
-  freeShipping?: boolean
+  freeShipping?: boolean,
+  customerName?: string,
+  customerPhone?: string
 ): Promise<string> {
   const number = await getWhatsAppNumber()
-  const message = generateWhatsAppMessage(items, total, coupon, affiliate, freeShipping)
+  const message = generateWhatsAppMessage(items, total, coupon, affiliate, freeShipping, customerName, customerPhone)
   return `https://wa.me/${number}?text=${message}`
 }

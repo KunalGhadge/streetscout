@@ -25,6 +25,9 @@ export function CartDrawer() {
   const [codeError, setCodeError] = useState('')
   const [codeSuccess, setCodeSuccess] = useState(false)
   const [storeStatus, setStoreStatus] = useState<StoreStatus>({ accepting: true, message: '' })
+  const [customerName, setCustomerName] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [showCheckoutForm, setShowCheckoutForm] = useState(false)
 
   useEffect(() => {
     fetch('/api/content/store-status')
@@ -115,8 +118,15 @@ export function CartDrawer() {
     setCodeInput('')
   }
 
-  const handleWhatsAppCheckout = async () => {
+  const handleCheckoutClick = () => {
     if (!storeStatus.accepting) return
+    // Show the customer details form first
+    setShowCheckoutForm(true)
+  }
+
+  const handleConfirmOrder = async () => {
+    // Validate customer details
+    if (!customerName.trim() || !customerPhone.trim()) return
 
     // Create affiliate order record for tracking (if affiliate code used)
     if (affiliate) {
@@ -128,6 +138,8 @@ export function CartDrawer() {
             affiliateId: affiliate.id,
             code: affiliate.code,
             creatorName: affiliate.creatorName,
+            customerName: customerName.trim(),
+            customerPhone: customerPhone.trim(),
             orderTotal: finalTotal,
             commissionDue: affiliate.commissionDue,
           }),
@@ -137,8 +149,15 @@ export function CartDrawer() {
       }
     }
 
-    const url = await getWhatsAppUrl(items, finalTotal, coupon, affiliate, freeShipping)
+    // Open WhatsApp with customer details included
+    const url = await getWhatsAppUrl(
+      items, finalTotal, coupon, affiliate, freeShipping,
+      customerName.trim(), customerPhone.trim()
+    )
     window.open(url, '_blank')
+
+    // Reset the form
+    setShowCheckoutForm(false)
   }
 
   return (
@@ -390,20 +409,88 @@ export function CartDrawer() {
                 </span>
               </div>
 
-              {/* WhatsApp checkout */}
-              <button
-                onClick={handleWhatsAppCheckout}
-                disabled={!storeStatus.accepting}
-                className={cn(
-                  'btn-glow group flex w-full items-center justify-center gap-2 py-4 text-sm font-bold uppercase tracking-wider transition-all',
-                  storeStatus.accepting
-                    ? 'bg-[#25D366] text-black hover:bg-[#22c55e]'
-                    : 'cursor-not-allowed bg-[#2A2A2A] text-white/40'
-                )}
-              >
-                <MessageCircle className="h-5 w-5" />
-                {storeStatus.accepting ? 'Order On WhatsApp' : 'Orders Paused'}
-              </button>
+              {/* Customer details form (shows when user clicks checkout) */}
+              {showCheckoutForm && storeStatus.accepting && (
+                <div className="mb-4 border border-[#FF2D55]/40 bg-[#FF2D55]/5 p-4 animate-slide-up-fade">
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="font-mono-tech text-[10px] uppercase tracking-wider text-[#FF2D55]">
+                      Your Details
+                    </span>
+                    <button
+                      onClick={() => setShowCheckoutForm(false)}
+                      className="text-white/40 hover:text-white"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="mb-1 block font-mono-tech text-[9px] uppercase tracking-wider text-white/50">
+                        Your Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="Enter your name"
+                        className="w-full border border-[#2A2A2A] bg-[#050505] px-3 py-2 text-sm text-white placeholder-white/30 focus:border-[#FF2D55] focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block font-mono-tech text-[9px] uppercase tracking-wider text-white/50">
+                        WhatsApp Number *
+                      </label>
+                      <input
+                        type="tel"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                        placeholder="10-digit mobile number"
+                        maxLength={10}
+                        className="w-full border border-[#2A2A2A] bg-[#050505] px-3 py-2 text-sm text-white placeholder-white/30 focus:border-[#FF2D55] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleConfirmOrder}
+                    disabled={!customerName.trim() || !customerPhone.trim() || customerPhone.length < 10}
+                    className={cn(
+                      'mt-3 flex w-full items-center justify-center gap-2 py-3 text-sm font-bold uppercase tracking-wider transition-all',
+                      customerName.trim() && customerPhone.trim() && customerPhone.length >= 10
+                        ? 'bg-[#25D366] text-black hover:bg-[#22c55e]'
+                        : 'cursor-not-allowed bg-[#2A2A2A] text-white/40'
+                    )}
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    Confirm & Send on WhatsApp
+                  </button>
+
+                  {!customerName.trim() || !customerPhone.trim() || customerPhone.length < 10 ? (
+                    <p className="mt-2 font-mono-tech text-[9px] text-white/30">
+                      Enter name + 10-digit number to continue
+                    </p>
+                  ) : null}
+                </div>
+              )}
+
+              {/* Checkout button (or customer form trigger) */}
+              {!showCheckoutForm && (
+                <button
+                  onClick={handleCheckoutClick}
+                  disabled={!storeStatus.accepting}
+                  className={cn(
+                    'btn-glow group flex w-full items-center justify-center gap-2 py-4 text-sm font-bold uppercase tracking-wider transition-all',
+                    storeStatus.accepting
+                      ? 'bg-[#25D366] text-black hover:bg-[#22c55e]'
+                      : 'cursor-not-allowed bg-[#2A2A2A] text-white/40'
+                  )}
+                >
+                  <MessageCircle className="h-5 w-5" />
+                  {storeStatus.accepting ? 'Order On WhatsApp' : 'Orders Paused'}
+                </button>
+              )}
 
               <div className="mt-3 flex items-center justify-center gap-2">
                 <span className="h-px w-6 bg-[#2A2A2A]" />
