@@ -1204,11 +1204,11 @@ function CouponForm({
         )}
 
         {form.type === 'FREE_GIFT' && (
-          <Field label="Gift Name">
+          <Field label="Collector Pack / Gift Name" hint="e.g. Collector Pack, Premium Sticker Set, Exclusive Poster">
             <TextInput
               value={form.giftName}
               onChange={(v) => set('giftName', v)}
-              placeholder="Free Sticker Pack"
+              placeholder="Collector Pack"
             />
           </Field>
         )}
@@ -3159,11 +3159,11 @@ function AffiliateForm({
           </Field>
         )}
         {form.rewardType === 'FREE_GIFT' && (
-          <Field label="Gift Name">
+          <Field label="Collector Pack / Gift Name" hint="e.g. Collector Pack, Premium Sticker Set, Exclusive Poster">
             <TextInput
               value={form.rewardGiftName}
               onChange={(v) => set('rewardGiftName', v)}
-              placeholder="Sticker Pack"
+              placeholder="Collector Pack"
             />
           </Field>
         )}
