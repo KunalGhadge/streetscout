@@ -22,12 +22,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Affiliate not found or inactive' }, { status: 400 })
     }
 
-    // Create the pending order record
+    // Create the pending order record with customer details
     const order = await db.affiliateOrder.create({
       data: {
         affiliateId: affiliate.id,
         code: String(body.code).slice(0, 50),
         creatorName: String(body.creatorName).slice(0, 200),
+        customerName: String(body.customerName || '').slice(0, 200),
+        customerPhone: String(body.customerPhone || '').slice(0, 20),
         orderTotal: Math.max(0, parseFloat(body.orderTotal) || 0),
         commissionDue: Math.max(0, parseFloat(body.commissionDue) || 0),
         status: 'PENDING',
