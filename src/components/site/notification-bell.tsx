@@ -140,9 +140,9 @@ export function NotificationBell() {
 
   return (
     <>
-      {/* Store Status Banner (shows when orders paused) */}
+      {/* Store Status Banner (shows when orders paused) — sits below navbar */}
       {!storeStatus.accepting && (
-        <div className="fixed left-0 right-0 top-0 z-[60] border-b border-[#FF2D55]/40 bg-[#FF2D55]/10 backdrop-blur-md animate-slide-down">
+        <div className="fixed left-0 right-0 top-[60px] z-[55] border-b border-[#FF2D55]/40 bg-[#FF2D55]/10 backdrop-blur-md animate-slide-down">
           <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 px-4 py-2 text-center">
             <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-[#FF2D55]" />
             <p className="font-mono-tech text-[10px] text-white/80">
