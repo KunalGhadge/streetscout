@@ -548,3 +548,21 @@ button, a {
   border-radius: 50%;
   pointer-events: none;
 }
+
+/* === Orders Paused — shift navbar + audio button down to avoid banner overlap === */
+/* When .orders-paused is on <html>, the banner shows at top-0.
+   Navbar and audio button shift down by 40px (banner height).
+   When orders are accepting, no class = everything at normal position. */
+.orders-paused header {
+  top: 40px !important;
+}
+.orders-paused button[aria-label="Unmute video"],
+.orders-paused button[aria-label="Mute video"] {
+  top: calc(80px + 40px) !important; /* original top-20 (80px) + 40px banner */
+}
+@media (min-width: 640px) {
+  .orders-paused button[aria-label="Unmute video"],
+  .orders-paused button[aria-label="Mute video"] {
+    top: calc(96px + 40px) !important; /* original sm:top-24 (96px) + 40px banner */
+  }
+}
